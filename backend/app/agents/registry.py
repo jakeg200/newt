@@ -32,7 +32,7 @@ def set_runner_override(factory: Callable[[Agent], Runner] | None) -> None:
     _override = factory
 
 
-def runner_for(agent: Agent) -> Runner:
+def runner_for(agent: Agent, samples: int | None = None) -> Runner:
     if _override is not None:
         return _override(agent)
     settings = get_settings()
@@ -44,17 +44,17 @@ def runner_for(agent: Agent) -> Runner:
         from app.llm.provider import AnthropicProvider
 
         provider = AnthropicProvider(model=settings.apprentice_model, api_key=settings.anthropic_api_key)
-        return BuiltinApprentice(provider, samples=settings.apprentice_samples, effort=settings.apprentice_effort)
+        return BuiltinApprentice(provider, samples=samples or settings.apprentice_samples, effort=settings.apprentice_effort)
     return NearestCasesAgent()
 
 
-def describe_runner(agent: Agent) -> dict[str, Any]:
+def describe_runner(agent: Agent, samples: int | None = None) -> dict[str, Any]:
     """What a run with this agent will use, before it starts."""
     settings = get_settings()
     if agent.kind == "external":
         return {"kind": "external", "model": agent.model, "samples": 1, "billed_here": False}
     if settings.anthropic_api_key:
-        return {"kind": "built_in", "model": settings.apprentice_model, "samples": settings.apprentice_samples,
+        return {"kind": "built_in", "model": settings.apprentice_model, "samples": samples or settings.apprentice_samples,
                 "effort": settings.apprentice_effort, "billed_here": True}
     return {"kind": "built_in", "model": NearestCasesAgent.model, "samples": 1, "billed_here": False}
 

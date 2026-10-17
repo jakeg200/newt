@@ -185,6 +185,7 @@ class Apprenticeship(Base):
     mentor_id: Mapped[str] = fk("users.id")
     team: Mapped[str] = mapped_column(String(200))
     handbook_version: Mapped[int | None] = mapped_column(Integer)
+    rules_version: Mapped[int] = mapped_column(Integer, default=0)  # bumped on every rule change
 
 
 class TaskType(Base):
@@ -278,26 +279,51 @@ class Comparison(Base):
     decision_match: Mapped[bool] = mapped_column(Boolean)
     field_scores: Mapped[dict] = mapped_column(Json, default=dict)
     text_judgement: Mapped[dict] = mapped_column(Json, default=dict)
-    agreement: Mapped[bool] = mapped_column(Boolean)
+    agreement: Mapped[bool] = mapped_column(Boolean)  # as scored, before any lesson
+    attribution: Mapped[str | None] = mapped_column(String(20))  # set by the mentor's lesson
+    excluded: Mapped[bool] = mapped_column(Boolean, default=False)  # "I'd change my call": not the agent's error
+
+    @property
+    def effective_agreement(self) -> bool | None:
+        """Agreement after the mentor's lesson: None when the case no longer counts."""
+        if self.excluded:
+            return None
+        if self.attribution == "both_fine":
+            return True
+        if self.attribution in ("intern_wrong", "couldnt_know"):
+            return False
+        return self.agreement
 
 
 class Rule(Base):
+    """Something the apprentice believes the mentor cares about, in plain English."""
+
     __tablename__ = "rules"
     id: Mapped[str] = pk()
     apprenticeship_id: Mapped[str] = fk("apprenticeships.id")
     text: Mapped[str] = mapped_column(Text)
-    supporting_case_ids: Mapped[list] = mapped_column(Json, default=list)
+    decision: Mapped[str | None] = mapped_column(String(100))
+    supporting_case_ids: Mapped[list] = mapped_column(Json, default=list)  # example cases it came from
+    source: Mapped[str] = mapped_column(String(20), default="inferred")  # inferred | mentor
     status: Mapped[str] = mapped_column(String(20), default="proposed")  # proposed | active | retired
     version: Mapped[int] = mapped_column(Integer, default=1)
+    evidence_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # latest decision it learned from
+    stats: Mapped[dict] = mapped_column(Json, default=dict)  # support, precision
+    created_by: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
 class Lesson(Base):
     __tablename__ = "lessons"
     id: Mapped[str] = pk()
     case_id: Mapped[str] = fk("cases.id")
+    prediction_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("predictions.id", ondelete="CASCADE"), index=True)
     attribution: Mapped[str] = mapped_column(String(20))  # intern_wrong | both_fine | mentor_changed | couldnt_know
     note: Mapped[str | None] = mapped_column(Text)
+    reply_ok: Mapped[bool | None] = mapped_column(Boolean)  # mentor's verdict on the agent's reply, if asked
     rule_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("rules.id", ondelete="SET NULL"))
+    created_by: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 

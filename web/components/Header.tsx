@@ -8,7 +8,8 @@ const NAV = [
   { href: "/orientation", label: "Orientation", ready: true },
   { href: "/capture", label: "Capture", ready: true },
   { href: "/backtest", label: "Backtest", ready: true },
-  { href: "#", label: "Today", ready: false },
+  { href: "/today", label: "Today", ready: true },
+  { href: "/learned", label: "What I've learned", ready: true },
   { href: "#", label: "Task board", ready: false },
   { href: "#", label: "Manager", ready: false },
 ];

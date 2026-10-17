@@ -22,6 +22,10 @@ class Settings(BaseSettings):
     apprentice_effort: str = "medium"
     apprentice_samples: int = 5  # self-consistency: confidence = share of samples that agree
     backtest_concurrency: int = 16
+    judge_model: str = "claude-opus-5-5"
+    judge_effort: str = "medium"
+    repredict_samples: int = 1  # re-predicting the backlog after a rule edit: one sample keeps it quick and cheap
+    backlog_size: int = 50
     external_agent_timeout_s: float = 30.0
     inline_worker: bool = True  # dev: the API runs queued jobs itself, no separate worker process
     cors_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]

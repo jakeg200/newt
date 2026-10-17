@@ -15,7 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.agents.retrieval import Index
-from app.models import Agent, Apprenticeship, Case, Handbook, HumanAction, Rule, TaskType
+from app.models import Agent, Apprenticeship, Case, Handbook, HumanAction, Lesson, Rule, TaskType
 from app.task_types import TaskTypeConfig
 
 # Knowledge the agent is given rather than evidence from the case stream: allowed whatever its
@@ -81,6 +81,9 @@ def check(ctx: CaseContext, forbidden_texts: list[str]) -> None:
             raise LeakageError(f"case {ctx.case_id} appears among its own similar cases")
         if ctx.case_id in p.content.get("supporting_case_ids", []):
             raise LeakageError(f"{p.kind} {p.source_id} was learned from this very case")
+        if p.kind == "rule" and p.content.get("source") == "inferred" and p.content.get("evidence_until"):
+            if utc(datetime.fromisoformat(p.content["evidence_until"])) >= ctx.as_of:
+                raise LeakageError(f"rule {p.source_id} was learned from decisions made after the item arrived")
         if p.kind not in STANDING:
             if p.observed_at is None or utc(p.observed_at) > ctx.as_of:
                 raise LeakageError(
@@ -91,6 +94,16 @@ def check(ctx: CaseContext, forbidden_texts: list[str]) -> None:
         normal = " ".join(text.split())
         if len(normal) >= 20 and normal in scanned:
             raise LeakageError("the mentor's own response to this case appears in its context")
+
+
+def applicable(rule: Rule, case_id: str, as_of: datetime) -> bool:
+    """Never on a case the rule learned from; an inferred rule only after all its evidence existed.
+    A rule the mentor wrote or edited is standing knowledge, like the handbook."""
+    if case_id in (rule.supporting_case_ids or []):
+        return False
+    if rule.source == "inferred" and rule.evidence_until is not None and utc(rule.evidence_until) >= as_of:
+        return False
+    return True
 
 
 def mentor_outputs(actions: list[HumanAction]) -> list[str]:
@@ -127,9 +140,9 @@ class ContextBuilder:
             .order_by(Handbook.version.desc()).limit(1)
         )
         self.rules = list(session.scalars(
-            select(Rule).where(Rule.apprenticeship_id == apprenticeship.id, Rule.status == "active").order_by(Rule.id)
+            select(Rule).where(Rule.apprenticeship_id == apprenticeship.id, Rule.status == "active").order_by(Rule.created_at, Rule.id)
         ))
-        self.rules_version = max((r.version for r in self.rules), default=None)
+        self.rules_version = apprenticeship.rules_version or 0
 
         # Captured cases only (they always come through a connection); the seed's placeholders don't count.
         captured = (Case.task_type_id == task_type.id, Case.connection_id.is_not(None))
@@ -145,6 +158,9 @@ class ContextBuilder:
                                             first.payload.get("fields") or {}, first.payload.get("text_outputs") or {})
         self.cases = cases
         self.index = Index({cid: _text(c) for cid, c in cases.items()})
+        self.lessons: dict[str, Lesson] = {}
+        for lesson in session.scalars(select(Lesson).join(Case).where(*captured).order_by(Lesson.created_at)):
+            self.lessons[lesson.case_id] = lesson  # the latest lesson per case
 
     def build(self, case: Case) -> CaseContext:
         as_of = utc(case.received_at)
@@ -160,7 +176,12 @@ class ContextBuilder:
         if self.handbook:
             ctx.pieces.append(Piece("handbook", self.handbook.id, self.handbook.approved_at, self.handbook.content))
         for r in self.rules:
-            ctx.pieces.append(Piece("rule", r.id, None, {"text": r.text, "supporting_case_ids": r.supporting_case_ids}))
+            if applicable(r, case.id, as_of):
+                ctx.pieces.append(Piece("rule", r.id, None, {
+                    "id": r.id, "text": r.text, "decision": r.decision, "source": r.source,
+                    "supporting_case_ids": r.supporting_case_ids or [],
+                    "evidence_until": utc(r.evidence_until).isoformat() if r.evidence_until else None,
+                }))
 
         # Only cases whose decision was known before this item arrived.
         candidates = [cid for cid, d in self.decided.items() if cid != case.id and d.decided_at < as_of
@@ -168,11 +189,17 @@ class ContextBuilder:
         for cid, score in self.index.top_k(case.id, candidates, self.k):
             d = self.decided[cid]
             snap_c = d.case.snapshot or {}
-            ctx.pieces.append(Piece("similar_case", cid, d.decided_at, {
+            content = {
                 "received_at": utc(d.case.received_at).isoformat(), "subject": snap_c.get("subject", ""),
                 "inputs": snap_c.get("inputs", {}), "mentor_decision": d.decision, "mentor_fields": d.fields,
                 "mentor_text_outputs": d.text_outputs, "similarity": round(score, 3),
-            }))
+            }
+            observed = d.decided_at
+            lesson = self.lessons.get(cid)
+            if lesson and lesson.note and utc(lesson.created_at) < as_of:  # case memory, if it existed by then
+                content["mentor_note"] = lesson.note
+                observed = max(observed, utc(lesson.created_at))
+            ctx.pieces.append(Piece("similar_case", cid, observed, content))
         return ctx
 
     def forbidden(self, case: Case) -> list[str]:

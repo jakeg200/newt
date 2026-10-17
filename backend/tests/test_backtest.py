@@ -82,7 +82,15 @@ def _keyword_answer(item: dict) -> dict:
     else:
         decision, reason = "approve", "price"
     gl = next(code for name, code in SUPPLIERS if item["subject"].startswith(name))
-    return {"decision": decision, "fields": {"variance_reason": reason, "gl_code": gl}}
+    inv = item["subject"].split()[-1]
+    nums = re.findall(r"\d+", text)
+    email = ""
+    if reason == "quantity":
+        email = f"Hello, invoice {inv} bills {nums[0]} units but we received {nums[1]}. Please send a credit note for the difference."
+    elif reason == "duplicate":
+        prev = re.search(r"INV-\d+", text).group(0)
+        email = f"Hello, invoice {inv} looks like a duplicate of {prev}, which we've already paid. Please confirm or cancel it."
+    return {"decision": decision, "fields": {"variance_reason": reason, "gl_code": gl}, "text_outputs": {"supplier_email": email}}
 
 
 def test_builtin_apprentice_uses_cached_handbook_prompt_and_self_consistency(client, session, history):
@@ -91,8 +99,7 @@ def test_builtin_apprentice_uses_cached_handbook_prompt_and_self_consistency(cli
     def respond(task, system, user, schema):
         item = json.loads(user.split("<item>")[1].split("</item>")[0])
         calls.append(item["inputs"]["invoice_text"])
-        return {**_keyword_answer(item), "text_outputs": {"supplier_email": ""}, "rationale": "pattern",
-                "missing_info": [], "self_reported_confidence": 0.8}
+        return {**_keyword_answer(item), "rationale": "pattern", "missing_info": [], "self_reported_confidence": 0.8}
 
     provider = FakeProvider({"prediction": respond})
     registry.set_runner_override(lambda agent: BuiltinApprentice(provider, samples=3))

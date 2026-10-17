@@ -281,6 +281,90 @@ export interface BacktestCase {
   field_scores: Record<string, { mentor: unknown; agent: unknown; match: boolean; critical: boolean }>;
 }
 
+export type Attribution = "intern_wrong" | "both_fine" | "mentor_changed" | "couldnt_know";
+
+export interface TextJudgement {
+  status?: "pending" | "judged" | "skipped";
+  judge?: string;
+  acceptable?: boolean;
+  outputs?: Record<string, { verdict: string; reasons: string[] }>;
+  reason?: string;
+}
+
+export interface TeachingCard {
+  prediction_id: string;
+  kind: "disagreement" | "unsure" | "spot_check";
+  case: { id: string; received_at: string; subject: string; from: string | null; inputs: Record<string, string> };
+  mentor: { decision: string | null; fields: Record<string, unknown>; text_outputs: Record<string, string>; note?: string | null };
+  agent: { decision?: string; fields?: Record<string, unknown>; text_outputs?: Record<string, string>; rationale?: string; missing_info?: string[] };
+  confidence: number | null;
+  comparison: {
+    decision_match: boolean;
+    field_scores: Record<string, { mentor: unknown; agent: unknown; match: boolean; critical: boolean }>;
+    text_judgement: TextJudgement;
+  };
+}
+
+export interface TeachingQueue {
+  run_id: string | null;
+  total: number;
+  by_kind: Record<string, number>;
+  cards: TeachingCard[];
+}
+
+export interface TeachingSummary {
+  run_id: string | null;
+  predicted: number;
+  agreement: number | null;
+  excluded?: number;
+  lessons: number;
+  by_attribution: Record<string, number>;
+  queue: number;
+  judge: { compared: number; agree: number; rate: number | null; judge?: string | null; trusted: boolean; trust_bar: { rate: number; min_lessons: number } };
+  rules: { proposed: number; active: number; retired: number };
+  latest_repredict: { id: string; status: string; reason: string; changed: number | null; compared: number | null; created_at: string } | null;
+}
+
+export interface LessonResult {
+  lesson_id: string;
+  effect: string;
+  remaining: number;
+  reply_ok: boolean | null;
+  repredict_run_id: string | null;
+  elapsed_ms: number;
+}
+
+export interface RuleInfo {
+  id: string;
+  text: string;
+  decision: string | null;
+  source: "inferred" | "mentor";
+  status: "proposed" | "active" | "retired";
+  version: number;
+  examples: number;
+  stats: { support?: number; matches?: number; precision?: number; method?: string };
+  evidence_until: string | null;
+  created_at: string;
+  updated_at: string;
+  repredict_run_id?: string | null;
+}
+
+export interface RuleExample {
+  case_id: string;
+  received_at: string;
+  subject: string;
+  inputs: Record<string, string>;
+  decision: string | null;
+}
+
+export interface RepredictRun {
+  id: string;
+  status: BacktestRun["status"];
+  error: string | null;
+  params: { reason?: string; case_ids?: string[] };
+  stats: { changed?: number; compared_with_previous?: number; changes?: { case_id: string; subject: string; before: string | null; after: string | null }[] };
+}
+
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
     super(message);
@@ -366,4 +450,17 @@ export const api = {
   backtests: (taskTypeId: string) => request<BacktestRun[]>(`/backtests?task_type_id=${taskTypeId}`),
   backtestCases: (id: string, only: "disagreements" | "handed_back" | "all") =>
     request<{ items: BacktestCase[] }>(`/backtests/${id}/cases?only=${only}&limit=100`),
+  run: (id: string) => request<RepredictRun>(`/backtests/${id}`),
+
+  teachingQueue: (taskTypeId: string, limit = 10) => request<TeachingQueue>(`/teaching/queue?task_type_id=${taskTypeId}&limit=${limit}`),
+  teachingSummary: (taskTypeId: string) => request<TeachingSummary>(`/teaching/summary?task_type_id=${taskTypeId}`),
+  lesson: (body: { prediction_id: string; attribution: Attribution; note?: string; reply_ok?: boolean | null; rule_text?: string }) =>
+    request<LessonResult>("/lessons", { method: "POST", body: JSON.stringify(body) }),
+  rules: (taskTypeId: string) => request<RuleInfo[]>(`/rules?task_type_id=${taskTypeId}`),
+  inferRules: (taskTypeId: string) => request<RuleInfo[]>("/rules/infer", { method: "POST", body: JSON.stringify({ task_type_id: taskTypeId }) }),
+  createRule: (taskTypeId: string, text: string) =>
+    request<RuleInfo>("/rules", { method: "POST", body: JSON.stringify({ task_type_id: taskTypeId, text }) }),
+  updateRule: (id: string, body: { text?: string; status?: RuleInfo["status"] }) =>
+    request<RuleInfo>(`/rules/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  ruleExamples: (id: string) => request<RuleExample[]>(`/rules/${id}/examples`),
 };

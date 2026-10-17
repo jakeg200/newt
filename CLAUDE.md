@@ -45,6 +45,11 @@ offline drafter (`app/orientation/offline.py`); tests always use `FakeProvider`,
   context goes through `ContextBuilder` and the guard in `app/agents/context.py`; never hand an
   agent case data any other way. `tests/test_backtest.py` holds the leakage tests.
 - Migrations must keep data on SQLite: `tests/test_db_and_seed.py::test_migrations_keep_data_on_sqlite`.
+- Rules reach agents only through `ContextBuilder` (`applicable()` in `app/agents/context.py`): never
+  on their own example cases, and inferred rules only after their evidence. Every rule change must
+  bump the rules version (`learning.rules.bump_version`).
+- Teaching never reveals the agent's answer before the mentor decides (sealed, then revealed);
+  cards only show cases the mentor has already decided.
 - No score, ranking or report about the mentor as a person.
 - Captured content is redacted (`app/capture/redact.py`) before it is stored; ids and addresses
   are stored only as keyed hashes (`app/capture/keys.py`). Never add a column that holds raw

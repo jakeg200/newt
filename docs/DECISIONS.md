@@ -39,3 +39,11 @@ Defaults taken so the build doesn't stop to ask. Change any of them by editing t
 | 2026-10-17 | Backtests select the most recent N decided history cases; earlier ones serve only as past cases | Every predicted case has history to learn from, as in live shadowing |
 | 2026-10-17 | Jobs run in-process in development (`INLINE_WORKER`), in `python -m app.worker` in production | No extra process to run while building |
 | 2026-10-17 | SQLite migrations run with foreign keys off | Table rebuilds on SQLite otherwise cascade-delete dependent rows |
+| 2026-10-17 | Replies are judged only when the agent made the mentor's decision; a missing draft is "missing", never acceptable | A reply to the wrong decision isn't worth judging; leaving the reply out can't help the agent's score |
+| 2026-10-17 | Judge: `claude-opus-5-5` at effort `medium`, offline word-overlap judge without a key; trusted at 20+ rated replies with 90%+ agreement | The brief's bar; the model choice is yours to change (`JUDGE_MODEL`) |
+| 2026-10-17 | Lessons re-score in place: comparisons keep the original agreement plus the mentor's attribution; "I'd change my call" excludes the case | The raw score stays auditable, and the effective score reflects teaching |
+| 2026-10-17 | "Both fine" implies the reply is fine; "Intern wrong" on a case where only the reply differed implies it isn't | Fewer taps, and more judge-agreement data |
+| 2026-10-17 | Teaching queue = disagreements, then unsure (<70%), then ~1 in 10 agreed cases with a reply as spot checks | Ten minutes a day on what matters; spot checks stop the judge and the agreement figure from going unchecked |
+| 2026-10-17 | Inferred rules are used only on cases after their evidence; mentor-written or mentor-edited rules are standing knowledge, never used on their own examples | No leaks through rules, while a rule the mentor states applies like the handbook |
+| 2026-10-17 | Every rule change bumps the apprenticeship's rules version and re-predicts the backlog (50 cases, one sample each) | Shows the effect at once, at about $1 with Claude |
+| 2026-10-17 | Offline rule inference: one- or two-word phrases at ≥90% precision and ≥5 cases, two-word phrases preferred | Readable rules, no model needed, and tests stay deterministic |
