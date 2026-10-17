@@ -1,0 +1,24 @@
+{
+  "name": "Tenant repair request",
+  "trigger": "tenant reports something broken or unsafe in a property",
+  "inputs": ["request_text", "property_record", "tenancy_record", "contractor_list"],
+  "decision": ["book_contractor", "ask_for_details", "escalate"],
+  "fields": {
+    "urgency": {
+      "type": "enum",
+      "critical": true,
+      "options": ["emergency", "urgent", "routine"]
+    },
+    "trade": {
+      "type": "enum",
+      "critical": true,
+      "options": ["plumbing", "electrical", "heating", "general", "other"]
+    },
+    "contractor_id": {"type": "string", "critical": false}
+  },
+  "text_outputs": ["tenant_reply"],
+  "allowed_actions": ["draft_reply", "set_status", "route"],
+  "hard_rules": ["gas smell or carbon monoxide", "no heating or hot water in winter"],
+  "alpha": 0.02,
+  "min_cases": 150
+}

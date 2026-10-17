@@ -1,0 +1,20 @@
+{
+  "name": "Invoice mismatch under £5k",
+  "trigger": "invoice where amount or lines differ from the PO",
+  "inputs": ["invoice_text", "po_record", "supplier_history"],
+  "decision": ["approve", "query_supplier", "escalate"],
+  "fields": {
+    "variance_reason": {
+      "type": "enum",
+      "critical": true,
+      "options": ["price", "quantity", "missing_po", "duplicate", "other"]
+    },
+    "gl_code": {"type": "string", "critical": true},
+    "note": {"type": "text", "critical": false}
+  },
+  "text_outputs": ["supplier_email"],
+  "allowed_actions": ["draft_reply", "set_status"],
+  "hard_rules": ["amount above 5000 GBP", "supplier marked key account"],
+  "alpha": 0.02,
+  "min_cases": 150
+}
