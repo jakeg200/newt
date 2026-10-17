@@ -12,11 +12,11 @@ const NAV = [
   { href: "/learned", label: "What I've learned", ready: true },
   { href: "/board", label: "Task board", ready: true },
   { href: "/autonomy", label: "Autonomy", ready: true },
-  { href: "#", label: "Manager", ready: false },
+  { href: "/manager", label: "Manager", ready: true },
 ];
 
 export function Header() {
-  const { users, user, setUser, error } = useUser();
+  const { mode, users, user, setUser, signOut, error } = useUser();
   const pathname = usePathname();
 
   return (
@@ -45,7 +45,18 @@ export function Header() {
           )}
         </nav>
         <div className="ml-auto flex items-center gap-2 text-sm">
-          {error ? (
+          {mode === "supabase" ? (
+            user && (
+              <>
+                <span className="text-stone-600">
+                  {user.name} · {user.role}
+                </span>
+                <button type="button" onClick={() => signOut()} className="rounded-md px-2 py-1 text-stone-500 hover:bg-stone-100">
+                  Sign out
+                </button>
+              </>
+            )
+          ) : error ? (
             <span className="text-red-700">{error}</span>
           ) : (
             <>

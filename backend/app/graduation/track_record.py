@@ -16,6 +16,13 @@ def _date(dt) -> str | None:
     return utc(dt).date().isoformat() if dt else None
 
 
+def _note(evidence: dict[str, Any]) -> str | None:
+    if "recertified" in evidence:
+        verdict = "re-certified" if evidence["recertified"] else "failed re-certification"
+        return f"{verdict} on the frozen record after {evidence.get('reason')}"
+    return evidence.get("reason")
+
+
 def build(session: Session, tt: TaskType) -> dict[str, Any]:
     from app.graduation.engine import evaluate, last_graduation
 
@@ -55,7 +62,7 @@ def build(session: Session, tt: TaskType) -> dict[str, Any]:
         "signoffs": signoffs,
         "history": [{"date": _date(e.signed_at), "from": e.from_status, "to": e.to_status,
                      "by": "system" if not e.signed_by else (session.get(User, e.signed_by).role if session.get(User, e.signed_by) else None),
-                     "note": e.evidence.get("reason") or ("re-certified" if e.evidence.get("recertified") else None)} for e in events],
+                     "note": _note(e.evidence)} for e in events],
         "evaluated_at": basis.get("evaluated_at"),
     }
 

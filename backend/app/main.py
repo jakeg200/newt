@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.api import backtest, capture, graduation, orientation, teaching
+from app.api import backtest, capture, graduation, manager, orientation, teaching
 from app.auth import current_user
 from app.config import get_settings
 from app.db import get_engine, get_session
@@ -42,6 +42,7 @@ app.include_router(capture.router)
 app.include_router(backtest.router)
 app.include_router(teaching.router)
 app.include_router(graduation.router)
+app.include_router(manager.router)
 
 
 @app.get("/health")
@@ -57,8 +58,10 @@ def task_type_configs() -> dict:
 
 
 @app.get("/me")
-def me(user: User = Depends(current_user)) -> dict:
-    return {"id": user.id, "name": user.name, "role": user.role, "org_id": user.org_id}
+def me(user: User = Depends(current_user), session: Session = Depends(get_session)) -> dict:
+    org = session.get(Org, user.org_id)
+    return {"id": user.id, "name": user.name, "role": user.role, "email": user.email, "org_id": user.org_id,
+            "org": org.name if org else None, "synthetic": bool(org and org.is_synthetic)}
 
 
 @app.get("/task-types")
@@ -83,4 +86,5 @@ def dev_users(session: Session = Depends(get_session)) -> list[dict]:
     if get_settings().env != "dev":
         raise HTTPException(status.HTTP_404_NOT_FOUND)
     rows = session.execute(select(User, Org).join(Org).order_by(Org.name, User.role, User.name)).all()
-    return [{"id": u.id, "name": u.name, "role": u.role, "email": u.email, "org": o.name} for u, o in rows]
+    return [{"id": u.id, "name": u.name, "role": u.role, "email": u.email, "org": o.name, "synthetic": o.is_synthetic}
+            for u, o in rows]

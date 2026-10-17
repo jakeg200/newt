@@ -10,7 +10,16 @@ class Base(DeclarativeBase):
     pass
 
 
+def normalise_url(url: str) -> str:
+    """Supabase and most hosts hand out postgres:// or postgresql:// URLs; SQLAlchemy needs the driver named."""
+    for prefix in ("postgres://", "postgresql://"):
+        if url.startswith(prefix):
+            return "postgresql+psycopg://" + url[len(prefix):]
+    return url
+
+
 def make_engine(url: str) -> Engine:
+    url = normalise_url(url)
     if url.startswith("sqlite"):
         # The API and the in-process job worker share the file; wait for locks instead of failing.
         engine = create_engine(url, connect_args={"check_same_thread": False, "timeout": 30})

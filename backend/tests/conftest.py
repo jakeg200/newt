@@ -24,8 +24,39 @@ def migrate(url: str) -> None:
     command.upgrade(cfg, "head")
 
 
+_pg: dict = {}
+
+
+def _postgres_url() -> str:
+    """TEST_DATABASE=postgres runs every test on a real Postgres (embedded, via pgserver): the schema
+    is migrated once into a template, and each test gets a fresh copy of it."""
+    import uuid
+
+    import pgserver
+    from sqlalchemy import create_engine, text
+
+    if "server" not in _pg:
+        import tempfile
+
+        _pg["server"] = pgserver.get_server(tempfile.mkdtemp(prefix="ao-pg-"), cleanup_mode="stop")
+        base = _pg["server"].get_uri().replace("postgresql://", "postgresql+psycopg://")
+        _pg["base"] = base.rsplit("/", 1)[0]
+        admin = create_engine(f"{_pg['base']}/postgres", isolation_level="AUTOCOMMIT")
+        with admin.connect() as conn:
+            conn.execute(text("DROP DATABASE IF EXISTS ao_template"))
+            conn.execute(text("CREATE DATABASE ao_template"))
+        migrate(f"{_pg['base']}/ao_template")
+        _pg["admin"] = admin
+    name = f"t_{uuid.uuid4().hex[:12]}"
+    with _pg["admin"].connect() as conn:
+        conn.execute(text(f"CREATE DATABASE {name} TEMPLATE ao_template"))
+    return f"{_pg['base']}/{name}"
+
+
 @pytest.fixture
 def db_url(tmp_path: Path) -> str:
+    if os.environ.get("TEST_DATABASE") == "postgres":
+        return _postgres_url()
     url = f"sqlite:///{(tmp_path / 'test.db').as_posix()}"
     migrate(url)
     return url

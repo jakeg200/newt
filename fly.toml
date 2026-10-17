@@ -1,0 +1,37 @@
+# Fly.io: the API and the job worker, in the EU. See docs/DEPLOY.md.
+app = "agent-onboarding-api"  # change to your app name
+primary_region = "fra"        # Frankfurt; keep it near your Supabase region
+
+[build]
+  dockerfile = "backend/Dockerfile"
+
+[env]
+  ENV = "production"
+  INLINE_WORKER = "false"
+
+[processes]
+  app = "python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers"
+  worker = "python -m app.worker"
+
+[deploy]
+  release_command = "python -m alembic upgrade head"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "30s"
+    method = "GET"
+    path = "/health"
+    timeout = "5s"
+
+[[vm]]
+  memory = "1gb"
+  cpu_kind = "shared"
+  cpus = 1

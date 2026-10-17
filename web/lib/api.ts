@@ -8,6 +8,7 @@ export interface DevUser {
   role: Role;
   email: string;
   org: string;
+  synthetic: boolean;
 }
 
 export interface SourceDoc {
@@ -472,6 +473,38 @@ export interface Digest {
   recent?: { case_id: string; subject: string; action: string; status: string; payload: Record<string, unknown>; reasons: string[]; at: string }[];
 }
 
+export interface ManagerSettings {
+  currency: string;
+  usd_rate: number;
+  hourly_cost: number | null;
+  minutes_per_case: number | null;
+}
+
+export interface ManagerTeam {
+  team: string;
+  handbook: { version: number; approved_at: string } | null;
+  stages: Record<Stage, number>;
+  task_types: {
+    id: string;
+    name: string;
+    status: Stage;
+    handled: { autonomous: number; supervised: number; total: number };
+    coverage: number;
+    error_upper_bound: number;
+    alpha: number;
+    hand_back_rate: number | null;
+    audits: { passed: number; failed: number; pending: number };
+    time_to_decision_minutes: number | null;
+  }[];
+  cases_handled: number;
+  hours_returned: number | null;
+  value_of_hours: number | null;
+  running_cost: number;
+  running_cost_usd: { live: number; evaluation: number };
+  net: number | null;
+  settings: ManagerSettings;
+}
+
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
     super(message);
@@ -479,14 +512,26 @@ export class ApiError extends Error {
 }
 
 let currentUserId: string | null = null;
+let accessToken: string | null = null;
 
+/** Development: act as a seeded user. */
 export function setApiUser(id: string | null) {
   currentUserId = id;
 }
 
+/** Production: the Supabase session's access token. */
+export function setApiToken(token: string | null) {
+  accessToken = token;
+}
+
+function authHeaders(headers: Headers) {
+  if (accessToken) headers.set("Authorization", `Bearer ${accessToken}`);
+  else if (currentUserId) headers.set("X-Dev-User", currentUserId);
+}
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
-  if (currentUserId) headers.set("X-Dev-User", currentUserId);
+  authHeaders(headers);
   if (init.body && !(init.body instanceof FormData)) headers.set("Content-Type", "application/json");
   let res: Response;
   try {
@@ -509,6 +554,7 @@ const q = (team: string) => `team=${encodeURIComponent(team)}`;
 
 export const api = {
   devUsers: () => request<DevUser[]>("/dev/users"),
+  me: () => request<{ id: string; name: string; role: Role; email: string; org: string; synthetic: boolean }>("/me"),
   teams: () => request<string[]>("/orientation/teams"),
   sources: (team: string) => request<SourceDoc[]>(`/orientation/sources?${q(team)}`),
   upload: (team: string, files: File[]) => {
@@ -578,7 +624,7 @@ export const api = {
   trackRecord: (taskTypeId: string) => request<TrackRecord>(`/task-types/${taskTypeId}/track-record`),
   trackRecordPdf: async (taskTypeId: string) => {
     const headers = new Headers();
-    if (currentUserId) headers.set("X-Dev-User", currentUserId);
+    authHeaders(headers);
     const res = await fetch(`${API_URL}/task-types/${taskTypeId}/track-record.pdf`, { headers });
     if (!res.ok) throw new ApiError(res.status, "Couldn't export the PDF");
     return res.blob();
@@ -598,4 +644,8 @@ export const api = {
     request<{ result: "pass" | "fail"; agent_decision: string | null; review: { demoted_to?: string } | null }>(`/audits/${auditId}`, {
       method: "POST", body: JSON.stringify({ decision }) }),
   digest: (taskTypeId: string) => request<Digest>(`/autonomy/digest?task_type_id=${taskTypeId}`),
+
+  managerDashboard: () => request<{ period_days: number; teams: ManagerTeam[] }>("/manager/dashboard"),
+  managerSettings: (team: string, body: Partial<ManagerSettings>) =>
+    request<ManagerSettings>(`/manager/settings/${encodeURIComponent(team)}`, { method: "PATCH", body: JSON.stringify(body) }),
 };

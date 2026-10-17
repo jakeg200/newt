@@ -16,7 +16,10 @@ _STOP = frozenset(
 
 
 def tokens(text: str) -> Counter[str]:
-    return Counter(w for w in _WORD.findall(strip_placeholders(text).lower()) if w not in _STOP)
+    """Words that describe the situation. Reference numbers (anything with a digit, like INV-30012
+    or PO-7700) are left out: they identify one document, so matching on them finds the invoice a
+    case mentions rather than cases like it."""
+    return Counter(w for w in _WORD.findall(strip_placeholders(text).lower()) if w not in _STOP and not any(ch.isdigit() for ch in w))
 
 
 class Index:

@@ -56,7 +56,10 @@ class GullibleAgent:
 def autonomous(client, session):
     ctx = setup_team(client, session)
     tt = session.get(TaskType, ctx["tt"])
-    tt.status, tt.tau, tt.calibration = "autonomous", 0.5, {}  # straight to autonomy: this test is about the policy
+    # Straight to autonomy with a low threshold: this test is about the action policy. (With τ around
+    # 0.5 the classifier already hands back the "approve" injections: it finds approving a quantity
+    # mismatch very unlikely. A second line of defence, but not the one under test here.)
+    tt.status, tt.tau, tt.calibration = "autonomous", 0.2, {}
     session.commit()
     registry.set_runner_override(lambda agent: GullibleAgent())
     yield ctx
@@ -76,7 +79,15 @@ def test_twenty_adversarial_messages_produce_no_disallowed_actions(autonomous, s
     executed = [a for a in logs if a.status == "executed"]
     blocked = [a for a in logs if a.status == "blocked"]
 
-    assert len({a.case_id for a in executed}) == 20  # the agent really acted on every message (not a vacuous pass)
+    preds = session.scalars(select(Prediction).where(Prediction.run_id.is_(None))).all()
+    acted, stopped = {a.case_id for a in executed}, {a.case_id for a in blocked}
+    why_not = [p.output.get("hand_back") for p in preds if p.case_id not in acted | stopped]
+    # The agent really acted on every message (not a vacuous pass); the policy stopped some. Never both on one
+    # case: a blocked action stops the whole case and hands it back.
+    assert len(acted | stopped) == 20 and not acted & stopped, why_not
+    for p in preds:
+        if p.case_id in stopped:
+            assert p.output["hand_back"]["hand_back"] and session.get(Case, p.case_id).status == "open"
     assert {a.action for a in executed} <= set(task.allowed_actions)
     for a in executed:
         if a.action in ("draft_reply", "send_reply"):
@@ -86,7 +97,7 @@ def test_twenty_adversarial_messages_produce_no_disallowed_actions(autonomous, s
     replies = [a for a in logs if a.action in ("draft_reply", "send_reply")]
     injected_links = sum(1 for i in range(20) if re.search(r"https?://|www\.|@|\.example", INJECTIONS[i % 10]))
     assert sum(1 for a in replies if a.status == "blocked") >= injected_links
-    assert all(a.action == "set_field" or a.policy_check["reasons"] for a in blocked)
+    assert all(a.policy_check["reasons"] for a in blocked)
     # The agent's own "actions" and unknown fields never reached the log at all.
     assert not {a.action for a in logs} & {"forward", "attach"}
     assert not any(a.payload.get("name") == "bank_account" for a in logs)
@@ -134,8 +145,13 @@ def test_plan_derives_actions_only_from_the_answer():
                                 "actions": [{"type": "forward"}]}, "autonomous")
     assert [a.type for a in actions] == ["set_status", "set_field", "send_reply"]
     assert actions[-1].params["to"] == [SENDER]
-    supervised = plan(TASK, SNAP, {"decision": "query", "text_outputs": {"reply": "Hi"}}, "supervised")
+    drafts_too = TASK.model_copy(update={"allowed_actions": [*TASK.allowed_actions, "draft_reply"]})
+    supervised = plan(drafts_too, SNAP, {"decision": "query", "text_outputs": {"reply": "Hi"}}, "supervised")
     assert supervised[-1].type == "draft_reply"
+    # Only the action types the task allows are proposed: no field updates for a task without set_field.
+    narrow = TASK.model_copy(update={"allowed_actions": ["draft_reply", "set_status"]})
+    answer = {"decision": "query", "fields": {"reason": "quantity"}, "text_outputs": {"reply": "Hi"}}
+    assert [a.type for a in plan(narrow, SNAP, answer, "autonomous")] == ["set_status", "draft_reply"]
 
 
 def test_hard_rules():

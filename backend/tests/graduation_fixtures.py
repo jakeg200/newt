@@ -1,9 +1,7 @@
 """A team whose history is clean enough to graduate on, an agent that follows the mentor's
 patterns, and helpers to push live work through the REST connection."""
 
-import random
-import re
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 
 from sqlalchemy import select
 
@@ -12,33 +10,10 @@ from app.agents.output import PredictionResult
 from app.models import User
 from app.seed import seed
 from app.worker import run_once
+from demo.ap_data import COLUMNS, ledger_csv, ledger_rows, mentor_actions, mentor_answer
+from demo.ap_data import live_items as _live_items
 
-from tests.backtest_fixtures import COLUMNS, SUPPLIERS, ledger_csv, ledger_rows
-
-
-def answer(item: dict) -> dict:
-    """What the mentor does, by pattern (the history's rules)."""
-    text = " ".join(str(v) for v in item["inputs"].values())
-    if "units" in text:
-        decision, reason = "query_supplier", "quantity"
-    elif "purchase order" in text:
-        decision, reason = "escalate", "missing_po"
-    elif "approval limit" in text:
-        decision, reason = "escalate", "other"
-    elif "duplicate" in text:
-        decision, reason = "query_supplier", "duplicate"
-    else:
-        decision, reason = "approve", "price"
-    gl = next((code for name, code in SUPPLIERS if item.get("subject", "").startswith(name)), "6400")
-    inv = (re.findall(r"INV-\d+", item.get("subject", "")) or ["INV-0"])[0]
-    nums = re.findall(r"\d+", text)
-    email = ""
-    if reason == "quantity":
-        email = f"Hello, invoice {inv} bills {nums[0]} units but we received {nums[1]}. Please send a credit note for the difference."
-    elif reason == "duplicate":
-        prev = re.search(r"INV-\d+", text).group(0)
-        email = f"Hello, invoice {inv} looks like a duplicate of {prev}, which we've already paid. Please confirm or cancel it."
-    return {"decision": decision, "fields": {"variance_reason": reason, "gl_code": gl}, "text_outputs": {"supplier_email": email}}
+answer = mentor_answer
 
 
 class PatternAgent:
@@ -83,26 +58,10 @@ def drain(session, limit: int = 50) -> None:
             return
 
 
-_counter = [0]
-
-
-def live_items(n: int, *, start: datetime | None = None, seed_: int = 5, text: str | None = None,
-               subject: str | None = None) -> list[dict]:
-    """New supplier invoices arriving now, in the history's patterns (or with fixed text)."""
-    rng = random.Random(seed_ + _counter[0])
-    start = start or datetime.now(timezone.utc)
-    rows = ledger_rows(n, seed=seed_ + 100 + _counter[0], noise=0.0)
-    items = []
-    for i, r in enumerate(rows):
-        _counter[0] += 1
-        ref = f"LIVE-{_counter[0]}"
-        supplier = r["supplier"].split(" invoice ")[0]
-        items.append({"ref": ref, "received_at": (start + timedelta(minutes=i)).isoformat(),
-                      "subject": subject or f"{supplier} invoice INV-{90000 + _counter[0]}",
-                      "inputs": {"invoice_text": text or r["description"],
-                                 "po_record": f"PO-{80000 + _counter[0]}" if r["po"] else ""},
-                      "sender": f"billing{rng.randint(1, 5)}@supplier.example"})
-    return items
+def live_items(n: int, **kwargs) -> list[dict]:
+    if "seed_" in kwargs:
+        kwargs["seed"] = kwargs.pop("seed_")
+    return _live_items(n, **kwargs)
 
 
 def push(ctx, body: dict) -> dict:
@@ -114,10 +73,4 @@ def push(ctx, body: dict) -> dict:
 
 def mentor_decides(ctx, items: list[dict], at: datetime | None = None) -> dict:
     """The mentor's real decisions on live items, as the source system reports them."""
-    at = at or datetime.now(timezone.utc) + timedelta(hours=2)
-    actions = []
-    for it in items:
-        a = answer(it)
-        actions.append({"ref": f"{it['ref']}#done", "item_ref": it["ref"], "acted_at": at.isoformat(), "decision": a["decision"],
-                        "fields": a["fields"], "text_outputs": {k: v for k, v in a["text_outputs"].items() if v}})
-    return push(ctx, {"actions": actions})
+    return push(ctx, {"actions": mentor_actions(items, at)})

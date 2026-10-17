@@ -56,3 +56,11 @@ Defaults taken so the build doesn't stop to ask. Change any of them by editing t
 | 2026-10-17 | Autonomous actions are simulated (logged as executed) until production connectors exist | The trust machinery can be proven before anything reaches a customer's systems |
 | 2026-10-17 | About 1 in 10 autonomously handled cases gets a blind audit (deterministic by case) | The brief's 5–10%; deterministic so it can't be gamed by retrying |
 | 2026-10-17 | Model swaps, rule changes and newly approved handbooks trigger re-probation of graduated task types | A changed procedure is a changed agent |
+| 2026-10-17 | The frozen record is the graduation evidence (up to 600 cases), not a 150-case sample; re-probation runs at concurrency 48 | Re-certification needs the same statistical power as graduation; time stays near 10 minutes |
+| 2026-10-17 | "Both fine" alternatives and "I'd change my call" exclusions carry over to later predictions of the same case | The brief: the alternative is stored as acceptable |
+| 2026-10-17 | Similar-case retrieval ignores tokens containing digits | Reference numbers identify one document; matching on them finds the referenced invoice rather than similar situations |
+| 2026-10-17 | Only the task's allowed action types are planned; one blocked action stops the whole case and hands it back to the mentor | A status change without its reply is half done, and "actions blocked" should mean the policy stopped something |
+| 2026-10-17 | Manager dashboard: hours returned use the manager's own minutes per case; history's time-to-decision is shown only as context | Time-to-decision is elapsed time, not effort, and would overstate hours |
+| 2026-10-17 | Production auth: Supabase access tokens (HS256 secret or JWKS), email mapped to a provisioned user; no self-signup; accounts via `python -m app.admin` | The buyer controls who's in; no open registration on a system holding work data |
+| 2026-10-17 | Demo and end-to-end material lives in `backend/demo/`, outside `app/` | It's accounts-payable specific; `app/` stays industry-free |
+| 2026-10-17 | Hosting: Fly.io in Frankfurt (API and worker processes, migrations on release), Vercel for the web app, Supabase EU | The brief's EU hosting; one image for API and worker |

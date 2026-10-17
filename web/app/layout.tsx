@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { AuthGate } from "@/components/AuthGate";
 import { Header } from "@/components/Header";
 import { UserProvider } from "@/lib/user";
 import "./globals.css";
@@ -18,7 +19,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}>
         <UserProvider>
           <Header />
-          <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">{children}</main>
+          <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+            <AuthGate>{children}</AuthGate>
+          </main>
         </UserProvider>
       </body>
     </html>

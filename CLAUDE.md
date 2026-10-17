@@ -22,6 +22,11 @@ docs/DECISIONS.md; anything only Jake can provide goes in docs/NEEDS_JAKE.md.
 - Regenerate the capture samples (test mailbox, ledger CSVs): `python scripts/make_sample_capture.py`
 - Job worker (production; in dev the API runs jobs itself): `python -m app.worker`
 - Mock vendor agent for demos: `MOCK_AGENT_SECRET=… python -m uvicorn scripts.mock_agent:app --port 8100`
+- Tests on real Postgres (embedded via pgserver): `TEST_DATABASE=postgres python -m pytest`
+- Whole programme for "Demo Co" against the running API: `python -m demo` (`--stop-before …`, `live N [--decide]`)
+- Provisioning (orgs, people, teams): `python -m app.admin --help`
+
+Deploying: `docs/DEPLOY.md`. Demo video script: `docs/DEMO.md`.
 
 Web (run from `web/`): `npm run dev` (http://localhost:3000), `npx tsc --noEmit`, `npm run lint`.
 
@@ -55,6 +60,8 @@ offline drafter (`app/orientation/offline.py`); tests always use `FakeProvider`,
   `check`); never execute anything an agent's output names directly. `tests/test_actions.py` holds
   the adversarial test.
 - Graduation numbers come only from `app/eval/stats.py`; `tests/test_stats.py` pins the brief's figures.
+- `tests/test_end_to_end.py` runs the whole programme through the API with no database edits; keep it green.
+- Industry-specific demo material goes in `backend/demo/`, never in `app/`.
 - Captured content is redacted (`app/capture/redact.py`) before it is stored; ids and addresses
   are stored only as keyed hashes (`app/capture/keys.py`). Never add a column that holds raw
   message content or addresses.

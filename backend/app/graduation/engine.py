@@ -31,7 +31,9 @@ log = get_logger("graduation")
 MIN_LIVE = 50
 MIN_COVERAGE = 0.4
 SUPERVISED_BEFORE_AUTONOMY = 50
-FROZEN_MAX = 150
+# The frozen record is the graduation evidence itself, so re-probation has the same statistical power:
+# at α = 2%, even one error in 150 cases breaks the bound, which would demote on every model swap.
+FROZEN_MAX = 600
 AUDIT_WINDOW = 50
 GRADUATED = ("supervised", "autonomous")
 

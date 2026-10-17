@@ -19,7 +19,7 @@ from app.agents.output import validate_output
 from app.agents.registry import runner_for
 from app.eval.calibration import Calibrator, DecisionModel, Example, raw_score
 from app.eval.judge import get_judge, judge_outputs
-from app.eval.score import compare
+from app.eval.score import compare, inherited_attribution, prior_teaching
 from app.graduation import handback
 from app.logs import get_logger
 from app.models import (ActionLog, Agent, Apprenticeship, Audit, Case, Comparison, HumanAction, Job, Prediction, TaskType,
@@ -93,16 +93,22 @@ def predict_cases(session: Session, case_ids: list[str]) -> int:
 
 def _act(session: Session, tt: TaskType, task: TaskTypeConfig, case: Case, p: Prediction, mode: str) -> None:
     snapshot = case.snapshot or {}
-    for action in policy.plan(task, snapshot, p.output, mode):
-        verdict = policy.check(action, task, snapshot)
-        if not verdict["ok"]:
-            status = "blocked"
-        else:
-            status = "executed" if mode == "autonomous" else "pending"
+    checked = [(a, policy.check(a, task, snapshot)) for a in policy.plan(task, snapshot, p.output, mode)]
+    stopped = [(a, v) for a, v in checked if not v["ok"]]
+    if stopped:
+        # One blocked action stops the whole case: a status set without its reply would be half done.
+        for action, verdict in stopped:
+            session.add(ActionLog(case_id=case.id, prediction_id=p.id, mode=mode, action=action.type, payload=action.params,
+                                  policy_check=verdict, status="blocked"))
+            log.warning("blocked %s on case %s: %s", action.type, case.id, "; ".join(verdict["reasons"]))
+        hb = p.output.get("hand_back") or {}
+        reasons = [*hb.get("reasons", []), *(f"the action policy stopped {a.type}: {r}" for a, v in stopped for r in v["reasons"])]
+        p.output = {**p.output, "hand_back": {**hb, "hand_back": True, "reasons": reasons}}
+        return
+    for action, verdict in checked:
+        status = "executed" if mode == "autonomous" else "pending"
         session.add(ActionLog(case_id=case.id, prediction_id=p.id, mode=mode, action=action.type, payload=action.params,
                               policy_check=verdict, status=status, executed_at=utcnow() if status == "executed" else None))
-        if status == "blocked":
-            log.warning("blocked %s on case %s: %s", action.type, case.id, "; ".join(verdict["reasons"]))
     if mode == "autonomous":
         case.status = "handled"
         if _audit_sampled(case.id):
@@ -135,8 +141,10 @@ def score_cases(session: Session, case_ids: list[str]) -> int:
                 c["agreement"] = c["agreement"] and c["text_judgement"]["acceptable"]
             else:
                 c["text_judgement"] = {"status": "skipped", "reason": "different decision"}
+        inherited = inherited_attribution(task, p.output, prior_teaching(session, [case.id]).get(case.id))
         session.add(Comparison(case_id=case.id, prediction_id=p.id, decision_match=c["decision_match"], field_scores=c["field_scores"],
-                               text_judgement=c["text_judgement"], agreement=c["agreement"]))
+                               text_judgement=c["text_judgement"], agreement=c["agreement"],
+                               attribution=inherited, excluded=inherited == "mentor_changed"))
         scored += 1
     session.commit()
     return scored

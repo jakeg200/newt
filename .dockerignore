@@ -1,0 +1,13 @@
+**/.venv
+**/__pycache__
+**/*.db
+**/.env
+**/node_modules
+web
+samples
+docs
+.git
+.claude
+backend/tests
+backend/demo
+backend/scripts

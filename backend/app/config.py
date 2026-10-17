@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     apprentice_effort: str = "medium"
     apprentice_samples: int = 5  # self-consistency: confidence = share of samples that agree
     backtest_concurrency: int = 16
+    reprobation_concurrency: int = 48  # re-certifying the frozen record should take minutes, not half an hour
     judge_model: str = "claude-opus-5-5"
     judge_effort: str = "medium"
     repredict_samples: int = 1  # re-predicting the backlog after a rule edit: one sample keeps it quick and cheap

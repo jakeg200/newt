@@ -186,6 +186,7 @@ class Apprenticeship(Base):
     team: Mapped[str] = mapped_column(String(200))
     handbook_version: Mapped[int | None] = mapped_column(Integer)
     rules_version: Mapped[int] = mapped_column(Integer, default=0)  # bumped on every rule change
+    settings: Mapped[dict] = mapped_column(Json, default=dict)  # manager's inputs: hourly cost, currency, minutes per case
 
 
 class TaskType(Base):

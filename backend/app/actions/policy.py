@@ -35,7 +35,8 @@ class ProposedAction:
 
 
 def plan(task: TaskTypeConfig, snapshot: dict[str, Any], output: dict[str, Any], mode: str) -> list[ProposedAction]:
-    """Actions implied by an answer. Nothing the agent writes can add an action type."""
+    """Actions implied by an answer, of the types the task allows. Nothing the agent writes can add an action
+    type; fields a task doesn't set (no `set_field`) stay on the prediction rather than becoming blocked actions."""
     actions = [ProposedAction("set_status", {"value": output.get("decision")})]
     for name, value in (output.get("fields") or {}).items():
         actions.append(ProposedAction("set_field", {"name": name, "value": value}))
@@ -44,7 +45,7 @@ def plan(task: TaskTypeConfig, snapshot: dict[str, Any], output: dict[str, Any],
     if body:
         kind = "send_reply" if mode == "autonomous" and "send_reply" in task.allowed_actions else "draft_reply"
         actions.append(ProposedAction(kind, {"to": [snapshot.get("from")], "body": body, "output": reply_name}))
-    return actions
+    return [a for a in actions if a.type in task.allowed_actions]
 
 
 def check(action: ProposedAction, task: TaskTypeConfig, snapshot: dict[str, Any]) -> dict[str, Any]:

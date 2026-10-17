@@ -20,7 +20,7 @@ from app.agents.output import PredictionResult
 from app.agents.registry import describe_runner, runner_for
 from app.config import get_settings
 from app.eval.judge import get_judge, judge_outputs
-from app.eval.score import compare
+from app.eval.score import compare, inherited_attribution, prior_teaching
 from app.logs import get_logger
 from app.models import Agent, BacktestRun, Case, Comparison, Job, Prediction, TaskType, User, utcnow
 from app.task_types import TaskTypeConfig
@@ -174,11 +174,14 @@ def execute(session: Session, run_id: str) -> BacktestRun:
 
         runner = runner_for(agent, samples=run.params.get("samples"))
         rows: list[dict[str, Any]] = []
-        with ThreadPoolExecutor(max_workers=max(1, get_settings().backtest_concurrency)) as pool:
+        settings = get_settings()
+        workers = settings.reprobation_concurrency if run.params.get("kind") == "reprobation" else settings.backtest_concurrency
+        with ThreadPoolExecutor(max_workers=max(1, workers)) as pool:
             futures = {pool.submit(_safe_predict, runner, contexts[c.id]): c for c in cases}
+            teaching = prior_teaching(session, [c.id for c in cases])
             for n, fut in enumerate(as_completed(futures), start=1):
                 case = futures[fut]
-                rows.append(_record(session, run, agent, task, case, builder, fut.result()))
+                rows.append(_record(session, run, agent, task, case, builder, fut.result(), teaching.get(case.id)))
                 if n % 10 == 0 or n == len(futures):
                     run.progress = {"done": n, "total": len(futures)}
                     run.cost_usd = round(sum(r["cost"] for r in rows), 4)
@@ -224,7 +227,7 @@ def _previous_decisions(session: Session, case_ids: list[str], before: datetime)
 
 
 def _record(session: Session, run: BacktestRun, agent: Agent, task: TaskTypeConfig, case: Case,
-            builder: ContextBuilder, result: PredictionResult) -> dict[str, Any]:
+            builder: ContextBuilder, result: PredictionResult, teaching: dict[str, Any] | None = None) -> dict[str, Any]:
     prediction = Prediction(
         case_id=case.id, agent_id=agent.id, run_id=run.id, agent_version=agent.version, model=result.model,
         handbook_version=run.handbook_version, rules_version=run.rules_version,
@@ -246,8 +249,10 @@ def _record(session: Session, run: BacktestRun, agent: Agent, task: TaskTypeConf
         c = compare(task, result.output, mentor.decision, mentor.fields, mentor.text_outputs)
         if c["text_judgement"] and not c["decision_match"]:
             c["text_judgement"] = {"status": "skipped", "reason": "different decision"}
+        inherited = inherited_attribution(task, result.output, teaching)
         comp = Comparison(case_id=case.id, prediction_id=prediction.id, decision_match=c["decision_match"],
-                          field_scores=c["field_scores"], text_judgement=c["text_judgement"], agreement=c["agreement"])
+                          field_scores=c["field_scores"], text_judgement=c["text_judgement"], agreement=c["agreement"],
+                          attribution=inherited, excluded=inherited == "mentor_changed")
         session.add(comp)
         row.update(comparison=c, comp=comp)
     return row
