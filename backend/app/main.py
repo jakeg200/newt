@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.api import backtest, capture, orientation, teaching
+from app.api import backtest, capture, graduation, orientation, teaching
 from app.auth import current_user
 from app.config import get_settings
 from app.db import get_engine, get_session
@@ -41,6 +41,7 @@ app.include_router(orientation.router)
 app.include_router(capture.router)
 app.include_router(backtest.router)
 app.include_router(teaching.router)
+app.include_router(graduation.router)
 
 
 @app.get("/health")

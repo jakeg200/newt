@@ -10,6 +10,7 @@ from app.backtest.runner import create_repredict
 from app.capture.service import org_task_type
 from app.config import get_settings
 from app.db import get_session
+from app.graduation.engine import on_procedure_change
 from app.learning import rules as rules_mod
 from app.learning import teaching
 from app.models import Agent, Apprenticeship, Case, HumanAction, Rule, TaskType, User
@@ -107,6 +108,7 @@ def create_rule(body: RuleIn, user: User = Depends(mentor), session: Session = D
     rule = rules_mod.write(session, tt, user, body.text)
     session.flush()
     run = create_repredict(session, user, tt, _agent(session, tt), reason=f"new rule: {rule.text[:80]}")
+    on_procedure_change(session, tt, user, f"new rule: {rule.text[:80]}")
     session.commit()
     return {**_rule_out(rule), "repredict_run_id": run.id if run else None}
 
@@ -133,6 +135,7 @@ def update_rule(rule_id: str, body: RulePatch, user: User = Depends(mentor), ses
     if affects:
         what = "edited" if body.text else {"active": "accepted", "retired": "retired"}.get(body.status or "", "changed")
         run = create_repredict(session, user, tt, _agent(session, tt), reason=f"rule {what}: {rule.text[:80]}")
+        on_procedure_change(session, tt, user, f"rule {what}: {rule.text[:80]}")
     session.commit()
     return {**_rule_out(rule), "repredict_run_id": run.id if run else None}
 

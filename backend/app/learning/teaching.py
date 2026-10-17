@@ -141,6 +141,9 @@ def record_lesson(session: Session, user: User, prediction_id: str, attribution:
         lesson.rule_id = rule.id
         agent = session.get(Agent, session.get(Apprenticeship, task_type.apprenticeship_id).agent_id)
         repredict = create_repredict(session, user, task_type, agent, reason=f"new rule: {rule.text[:80]}")
+        from app.graduation.engine import on_procedure_change
+
+        on_procedure_change(session, task_type, user, f"new rule: {rule.text[:80]}")
         effect += " Your rule is active; re-predicting your backlog now."
     session.commit()
     remaining = queue(session, task_type, limit=0)["total"]

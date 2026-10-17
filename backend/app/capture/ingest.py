@@ -128,6 +128,7 @@ class _Matcher:
         self.session, self.connection, self.config, self.stats = session, connection, config, stats
         self.cases = {c.id: c for c in session.scalars(select(Case).where(Case.connection_id == connection.id))}
         self.keys = {cid: _case_keys(c) for cid, c in self.cases.items()}
+        self.touched: set[str] = set()
 
     def try_record(self, p: Prepared) -> tuple[bool, str | None]:
         result = match_action(p.keys(), list(self.keys.values()))
@@ -159,6 +160,7 @@ class _Matcher:
         )
         self.stats["actions_matched"] += 1
         self.stats[f"matched_{result.method}"] += 1
+        self.touched.add(case.id)
         if decision and case.status != "decided":
             case.status = "decided"
             self.keys[case.id].decided = True
@@ -180,13 +182,14 @@ def ingest(session: Session, connection: Connection, batch: Batch, *, live_after
     r = Redactor()
 
     known_refs = set(session.scalars(select(Case.source_ref).where(Case.connection_id == connection.id)))
+    new_cases: list[Case] = []
     for item in sorted(batch.items, key=lambda i: i.received_at):
         stats["items_received"] += 1
         if item.source_ref[:500] in known_refs:
             stats["duplicate_items"] += 1
             continue
         snapshot = _snapshot(item, r)
-        session.add(
+        new_cases.append(
             Case(
                 task_type_id=task_type.id,
                 connection_id=connection.id,
@@ -203,6 +206,7 @@ def ingest(session: Session, connection: Connection, batch: Batch, *, live_after
                 status="open",
             )
         )
+        session.add(new_cases[-1])
         known_refs.add(item.source_ref[:500])
         stats["cases_created"] += 1
     session.flush()
@@ -256,6 +260,9 @@ def ingest(session: Session, connection: Connection, batch: Batch, *, live_after
         "error_count": len(batch.errors),
         "redactions": dict(r.counts),
     }
+    from app.live import after_ingest  # live work is queued, never done inside a capture run
+
+    after_ingest(session, [c.id for c in new_cases if not c.is_backtest], sorted(matcher.touched))
     session.commit()
     log.info(
         "capture run %s on connection %s: %d new cases, %d of %d actions matched, %d earlier actions matched, %d errors",

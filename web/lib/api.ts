@@ -365,6 +365,113 @@ export interface RepredictRun {
   stats: { changed?: number; compared_with_previous?: number; changes?: { case_id: string; subject: string; before: string | null; after: string | null }[] };
 }
 
+export type Stage = "shadow" | "supervised" | "autonomous" | "demoted";
+
+export interface Check {
+  name: "bound" | "cases" | "live" | "coverage";
+  ok: boolean;
+  detail: string;
+}
+
+export interface EvalExample {
+  case_id: string;
+  subject: string;
+  agent: string;
+  mentor: string | null;
+  confidence: number;
+  live: boolean;
+}
+
+export interface Evaluation {
+  task_type_id: string;
+  status: Stage;
+  alpha: number;
+  min_cases: number;
+  cases: number;
+  live_cases: number;
+  backtest_cases: number;
+  agreement_rate: number | null;
+  tau: number | null;
+  n_above: number;
+  errors_above: number;
+  live_above: number;
+  ucb: number;
+  coverage: number;
+  hand_back_rate: number | null;
+  cases_needed: number;
+  more_clean_cases_needed: number;
+  checks: Check[];
+  eligible: boolean;
+  agreements?: EvalExample[];
+  disagreements?: EvalExample[];
+  hand_backs?: EvalExample[];
+  criteria: Record<string, string[]>;
+}
+
+export interface BoardRow {
+  id: string;
+  name: string;
+  status: Stage;
+  tau: number | null;
+  evaluation: Pick<Evaluation, "cases" | "live_cases" | "agreement_rate" | "tau" | "n_above" | "errors_above" | "ucb" | "alpha" |
+    "coverage" | "min_cases" | "cases_needed" | "more_clean_cases_needed" | "live_above" | "eligible" | "checks">;
+  supervised_cases: number;
+  supervised_needed: number;
+  untouched: { cases: number; untouched: number; rate: number | null };
+  audits: { passed: number; failed: number; pending: number };
+  last_drift: { checked_at: string; drifted: boolean } | null;
+  graduated_at: string | null;
+}
+
+export interface TrackRecord {
+  task_type: { name: string; definition: string; decisions: string[]; alpha: number };
+  status: Stage;
+  mentor: string | null;
+  team: string;
+  cases: { backtest: number | null; live: number | null };
+  agreement_rate: number | null;
+  error_upper_bound_95: number | null;
+  tau: number | null;
+  coverage: number | null;
+  hand_back_rate: number | null;
+  audits: { passed: number; total: number };
+  last_drift_check: { date: string; drifted: boolean } | null;
+  versions: { agent: string; model: string; agent_version: string; handbook: number | null; rules: number; config_hash: string };
+  signoffs: Record<string, { name: string | null; date: string | null }>;
+  history: { date: string | null; from: string; to: string; by: string | null; note: string | null }[];
+}
+
+export interface DraftCard {
+  prediction_id: string;
+  case: { id: string; received_at: string; subject: string; from: string | null; inputs: Record<string, string> };
+  agent: { decision: string; fields: Record<string, unknown>; text_outputs: Record<string, string>; rationale?: string };
+  confidence: number | null;
+  actions: { id: string; action: string; payload: Record<string, unknown>; status: string; policy: { ok: boolean; reasons: string[] } }[];
+}
+
+export interface HandbackCard {
+  prediction_id: string;
+  case: { id: string; received_at: string; subject: string; inputs: Record<string, string> };
+  reasons: string[];
+  agent_decision: string | null;
+  confidence: number | null;
+}
+
+export interface AuditCard {
+  audit_id: string;
+  case: { id: string; received_at: string; subject: string; from: string | null; inputs: Record<string, string> };
+}
+
+export interface Digest {
+  status: Stage;
+  cases_handled: number;
+  actions_executed: number;
+  actions_blocked: number;
+  handbacks: number | null;
+  audits_pending: number;
+  recent?: { case_id: string; subject: string; action: string; status: string; payload: Record<string, unknown>; reasons: string[]; at: string }[];
+}
+
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
     super(message);
@@ -463,4 +570,32 @@ export const api = {
   updateRule: (id: string, body: { text?: string; status?: RuleInfo["status"] }) =>
     request<RuleInfo>(`/rules/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   ruleExamples: (id: string) => request<RuleExample[]>(`/rules/${id}/examples`),
+
+  board: () => request<BoardRow[]>("/board"),
+  evaluation: (taskTypeId: string) => request<Evaluation>(`/task-types/${taskTypeId}/evaluation`),
+  graduate: (taskTypeId: string, to: "supervised" | "autonomous") =>
+    request<{ status: Stage; tau: number | null }>(`/task-types/${taskTypeId}/graduate`, { method: "POST", body: JSON.stringify({ to }) }),
+  trackRecord: (taskTypeId: string) => request<TrackRecord>(`/task-types/${taskTypeId}/track-record`),
+  trackRecordPdf: async (taskTypeId: string) => {
+    const headers = new Headers();
+    if (currentUserId) headers.set("X-Dev-User", currentUserId);
+    const res = await fetch(`${API_URL}/task-types/${taskTypeId}/track-record.pdf`, { headers });
+    if (!res.ok) throw new ApiError(res.status, "Couldn't export the PDF");
+    return res.blob();
+  },
+  driftCheck: (taskTypeId: string) =>
+    request<{ drifted: boolean; result: Record<string, number>; status: Stage }>(`/task-types/${taskTypeId}/drift-check`, { method: "POST" }),
+  swapModel: (agentId: string, model: string, version: string) =>
+    request<{ model: string; version: string; reprobation_runs: string[] }>(`/agents/${agentId}/swap`, { method: "POST", body: JSON.stringify({ model, version }) }),
+  supervised: (taskTypeId: string) => request<DraftCard[]>(`/supervised?task_type_id=${taskTypeId}`),
+  approveDraft: (predictionId: string, edits: { decision?: string; text_outputs?: Record<string, string> } = {}) =>
+    request<{ status: string; untouched: boolean }>(`/supervised/${predictionId}/approve`, { method: "POST", body: JSON.stringify(edits) }),
+  rejectDraft: (predictionId: string, decision: string, note?: string) =>
+    request<{ status: string }>(`/supervised/${predictionId}/reject`, { method: "POST", body: JSON.stringify({ decision, note }) }),
+  handbacks: (taskTypeId: string) => request<HandbackCard[]>(`/handbacks?task_type_id=${taskTypeId}`),
+  audits: (taskTypeId: string) => request<AuditCard[]>(`/audits?task_type_id=${taskTypeId}`),
+  submitAudit: (auditId: string, decision: string) =>
+    request<{ result: "pass" | "fail"; agent_decision: string | null; review: { demoted_to?: string } | null }>(`/audits/${auditId}`, {
+      method: "POST", body: JSON.stringify({ decision }) }),
+  digest: (taskTypeId: string) => request<Digest>(`/autonomy/digest?task_type_id=${taskTypeId}`),
 };

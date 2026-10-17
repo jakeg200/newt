@@ -197,6 +197,7 @@ class TaskType(Base):
     config_hash: Mapped[str] = mapped_column(String(64))
     status: Mapped[str] = mapped_column(String(20), default="shadow")  # shadow | supervised | autonomous | demoted
     tau: Mapped[float | None] = mapped_column(Float)
+    calibration: Mapped[dict] = mapped_column(Json, default=dict)  # isotonic map fixed at graduation
 
 
 class Case(Base):
@@ -339,12 +340,27 @@ class GraduationEvent(Base):
 
 
 class Audit(Base):
+    """A blind audit: the mentor decides an autonomously handled case without seeing the agent's answer."""
+
     __tablename__ = "audits"
     id: Mapped[str] = pk()
     case_id: Mapped[str] = fk("cases.id")
+    task_type_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("task_types.id", ondelete="CASCADE"), index=True)
+    prediction_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("predictions.id", ondelete="CASCADE"))
     blind: Mapped[bool] = mapped_column(Boolean, default=True)
-    result: Mapped[str | None] = mapped_column(String(20))
+    result: Mapped[str | None] = mapped_column(String(20))  # pass | fail; None until the mentor answers
+    mentor_payload: Mapped[dict] = mapped_column(Json, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class DriftCheck(Base):
+    __tablename__ = "drift_checks"
+    id: Mapped[str] = pk()
+    task_type_id: Mapped[str] = fk("task_types.id")
+    checked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    drifted: Mapped[bool] = mapped_column(Boolean, default=False)
+    result: Mapped[dict] = mapped_column(Json, default=dict)
 
 
 class TrackRecord(Base):
@@ -356,12 +372,19 @@ class TrackRecord(Base):
 
 
 class ActionLog(Base):
+    """Every action the agent proposed, whether the policy allowed it, and what happened to it."""
+
     __tablename__ = "action_log"
     id: Mapped[str] = pk()
     case_id: Mapped[str] = fk("cases.id")
+    prediction_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("predictions.id", ondelete="CASCADE"), index=True)
+    mode: Mapped[str] = mapped_column(String(20), default="supervised")  # supervised | autonomous
     action: Mapped[str] = mapped_column(String(50))
     payload: Mapped[dict] = mapped_column(Json)
     policy_check: Mapped[dict] = mapped_column(Json)
+    status: Mapped[str] = mapped_column(String(20), default="pending")  # pending | approved | edited | rejected | executed | blocked
+    decided_by: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     executed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 

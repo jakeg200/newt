@@ -193,6 +193,7 @@ class PushItem(BaseModel):
     inputs: dict[str, str]
     subject: str = ""
     thread: str | None = None
+    sender: str | None = Field(default=None, max_length=320)  # stored only as a pseudonym
 
 
 class PushAction(BaseModel):
@@ -237,7 +238,8 @@ def push(session: Session, connection: Connection, body: PushBody) -> CaptureRun
         if unknown:
             batch.errors.append(f"item {i.ref[:40]}: unknown inputs {', '.join(unknown)}")
             continue
-        batch.items.append(Item(source_ref=i.ref, received_at=_utc(i.received_at), inputs=i.inputs, subject=i.subject, thread_ref=i.thread))
+        batch.items.append(Item(source_ref=i.ref, received_at=_utc(i.received_at), inputs=i.inputs, subject=i.subject,
+                                thread_ref=i.thread, sender=i.sender.lower() if i.sender else None))
     for a in body.actions:
         if a.kind == "decision" and a.decision not in config.decision:
             batch.errors.append(f"action {a.ref[:40]}: decision must be one of {config.decision}")

@@ -177,10 +177,21 @@ def update_handbook(
 
 @router.post("/handbook/{handbook_id}/approve")
 def approve_handbook(handbook_id: str, user: User = Depends(manager), session: Session = Depends(get_session)) -> dict[str, Any]:
+    from sqlalchemy import select
+
+    from app.graduation.engine import on_procedure_change
+    from app.models import Agent, Apprenticeship, TaskType
+
     try:
-        return _handbook_out(service.approve(session, _load(session, user, handbook_id), user))
+        handbook = service.approve(session, _load(session, user, handbook_id), user)
     except service.OrientationError as exc:
         raise _bad_request(exc) from exc
+    # A new handbook is a procedure change: graduated task types re-prove themselves on the frozen record.
+    for tt in session.scalars(select(TaskType).join(Apprenticeship).join(Agent)
+                              .where(Agent.org_id == user.org_id, Apprenticeship.team == handbook.team)):
+        on_procedure_change(session, tt, user, f"handbook v{handbook.version} approved")
+    session.commit()
+    return _handbook_out(handbook)
 
 
 @router.post("/handbook/{handbook_id}/revise", status_code=status.HTTP_201_CREATED)

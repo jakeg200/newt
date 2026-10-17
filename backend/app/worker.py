@@ -17,8 +17,22 @@ from app.models import Job, utcnow
 
 log = get_logger("worker")
 
+def _live_predict(session: Session, payload: dict) -> object:
+    from app.live import predict_cases
+
+    return predict_cases(session, payload["case_ids"])
+
+
+def _live_score(session: Session, payload: dict) -> object:
+    from app.live import score_cases
+
+    return score_cases(session, payload["case_ids"])
+
+
 HANDLERS: dict[str, Callable[[Session, dict], object]] = {
     "backtest": lambda session, payload: execute(session, payload["run_id"]),
+    "live_predict": _live_predict,
+    "live_score": _live_score,
 }
 
 

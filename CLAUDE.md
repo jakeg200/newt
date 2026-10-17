@@ -51,6 +51,10 @@ offline drafter (`app/orientation/offline.py`); tests always use `FakeProvider`,
 - Teaching never reveals the agent's answer before the mentor decides (sealed, then revealed);
   cards only show cases the mentor has already decided.
 - No score, ranking or report about the mentor as a person.
+- Agents never choose actions. Every action goes through `app/actions/policy.py` (`plan` then
+  `check`); never execute anything an agent's output names directly. `tests/test_actions.py` holds
+  the adversarial test.
+- Graduation numbers come only from `app/eval/stats.py`; `tests/test_stats.py` pins the brief's figures.
 - Captured content is redacted (`app/capture/redact.py`) before it is stored; ids and addresses
   are stored only as keyed hashes (`app/capture/keys.py`). Never add a column that holds raw
   message content or addresses.

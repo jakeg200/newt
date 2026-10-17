@@ -63,7 +63,7 @@ def latest_backtest(session: Session, task_type_id: str) -> BacktestRun | None:
         select(BacktestRun).where(BacktestRun.task_type_id == task_type_id, BacktestRun.status == "done")
         .order_by(BacktestRun.created_at.desc()).limit(20)
     )
-    return next((r for r in runs if r.params.get("kind") != "repredict"), None)
+    return next((r for r in runs if r.params.get("kind", "backtest") == "backtest"), None)
 
 
 def backlog_case_ids(session: Session, task_type_id: str, limit: int) -> list[str]:
@@ -191,6 +191,10 @@ def execute(session: Session, run_id: str) -> BacktestRun:
         run.status, run.finished_at = "done", utcnow()
         session.commit()
         log.info("backtest %s done: %d cases in %.1fs", run.id, len(rows), time.monotonic() - started)
+        if run.params.get("kind") == "reprobation":
+            from app.graduation.engine import after_reprobation
+
+            after_reprobation(session, run)
     except LeakageError as exc:
         session.rollback()
         run = session.get(BacktestRun, run_id)

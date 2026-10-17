@@ -10,7 +10,8 @@ const NAV = [
   { href: "/backtest", label: "Backtest", ready: true },
   { href: "/today", label: "Today", ready: true },
   { href: "/learned", label: "What I've learned", ready: true },
-  { href: "#", label: "Task board", ready: false },
+  { href: "/board", label: "Task board", ready: true },
+  { href: "/autonomy", label: "Autonomy", ready: true },
   { href: "#", label: "Manager", ready: false },
 ];
 

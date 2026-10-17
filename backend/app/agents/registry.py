@@ -43,7 +43,8 @@ def runner_for(agent: Agent, samples: int | None = None) -> Runner:
     if settings.anthropic_api_key:
         from app.llm.provider import AnthropicProvider
 
-        provider = AnthropicProvider(model=settings.apprentice_model, api_key=settings.anthropic_api_key)
+        model = (agent.config or {}).get("model") or settings.apprentice_model  # set by a model swap
+        provider = AnthropicProvider(model=model, api_key=settings.anthropic_api_key)
         return BuiltinApprentice(provider, samples=samples or settings.apprentice_samples, effort=settings.apprentice_effort)
     return NearestCasesAgent()
 
@@ -54,7 +55,8 @@ def describe_runner(agent: Agent, samples: int | None = None) -> dict[str, Any]:
     if agent.kind == "external":
         return {"kind": "external", "model": agent.model, "samples": 1, "billed_here": False}
     if settings.anthropic_api_key:
-        return {"kind": "built_in", "model": settings.apprentice_model, "samples": samples or settings.apprentice_samples,
+        return {"kind": "built_in", "model": (agent.config or {}).get("model") or settings.apprentice_model,
+                "samples": samples or settings.apprentice_samples,
                 "effort": settings.apprentice_effort, "billed_here": True}
     return {"kind": "built_in", "model": NearestCasesAgent.model, "samples": 1, "billed_here": False}
 
