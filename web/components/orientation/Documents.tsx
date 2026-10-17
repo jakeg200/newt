@@ -49,7 +49,7 @@ export function Documents({
             upload(Array.from(e.dataTransfer.files));
           }}
           className={`flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed px-4 py-6 text-center text-sm ${
-            dragging ? "border-teal-500 bg-teal-50" : "border-stone-300 bg-stone-50"
+            dragging ? "border-brand-500 bg-brand-50" : "border-stone-300 bg-stone-50"
           }`}
         >
           <p className="text-stone-600">

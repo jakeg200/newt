@@ -93,7 +93,7 @@ function SourceChips({
           title={known.get(s)?.document ?? "Missing source"}
           aria-label={`Source ${s}: ${known.get(s)?.document ?? "missing"}`}
           className={`rounded px-1.5 py-0.5 font-mono text-[11px] ${
-            known.has(s) ? "bg-teal-50 text-teal-800 hover:bg-teal-100" : "bg-red-50 text-red-700"
+            known.has(s) ? "bg-brand-50 text-brand-800 hover:bg-brand-100" : "bg-red-50 text-red-700"
           }`}
         >
           {s}
@@ -215,7 +215,7 @@ export function HandbookView({
       type="button"
       disabled={!!busy || !hasSources}
       onClick={() => run("draft", onDraft)}
-      className="rounded-md bg-teal-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-800 disabled:opacity-40"
+      className="rounded-md bg-brand-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-800 disabled:opacity-40"
       title={hasSources ? undefined : "Upload documents or answer the questionnaire first"}
     >
       {busy === "draft" ? "Drafting… (up to 2 minutes)" : versions.length ? "Draft a new version" : "Draft the handbook"}

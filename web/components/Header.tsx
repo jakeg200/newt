@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { InternAvatar } from "@/components/InternAvatar";
 import { useUser } from "@/lib/user";
 
 const NAV = [
@@ -22,7 +23,8 @@ export function Header() {
   return (
     <header className="border-b border-stone-200 bg-white">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-3 px-4 py-3 sm:px-6">
-        <Link href="/" className="font-semibold tracking-tight">
+        <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight text-cap-900">
+          <InternAvatar size={28} decorative />
           Agent Onboarding
         </Link>
         <nav className="flex flex-wrap gap-1 text-sm">
@@ -32,7 +34,7 @@ export function Header() {
                 key={item.label}
                 href={item.href}
                 className={`rounded-md px-2.5 py-1.5 ${
-                  pathname.startsWith(item.href) ? "bg-stone-100 font-medium" : "text-stone-600 hover:bg-stone-50"
+                  pathname.startsWith(item.href) ? "bg-brand-100 font-medium text-brand-800" : "text-stone-600 hover:bg-brand-50"
                 }`}
               >
                 {item.label}

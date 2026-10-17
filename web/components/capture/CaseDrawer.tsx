@@ -78,7 +78,7 @@ export function CaseDrawer({ detail, onClose }: { detail: CaseDetail | null; onC
                   <p className="flex flex-wrap items-center gap-2">
                     <span className="font-medium capitalize">{a.type}</span>
                     {a.payload.decision ? (
-                      <span className="rounded bg-teal-50 px-1.5 py-0.5 text-xs text-teal-800">{a.payload.decision.replace(/_/g, " ")}</span>
+                      <span className="rounded bg-brand-50 px-1.5 py-0.5 text-xs text-brand-800">{a.payload.decision.replace(/_/g, " ")}</span>
                     ) : (
                       <span className="rounded bg-amber-50 px-1.5 py-0.5 text-xs text-amber-800">no decision rule matched</span>
                     )}

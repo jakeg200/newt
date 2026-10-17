@@ -165,7 +165,7 @@ export default function ManagerPage() {
               editing === t.team ? (
                 <SettingsForm team={t.team} settings={t.settings} onSaved={() => { setEditing(null); load(); }} />
               ) : (
-                <button type="button" onClick={() => setEditing(t.team)} className="text-sm text-teal-700 hover:underline">
+                <button type="button" onClick={() => setEditing(t.team)} className="text-sm text-brand-700 hover:underline">
                   {t.settings.minutes_per_case ? "Change cost assumptions" : "Set minutes per case and hourly cost"}
                 </button>
               )

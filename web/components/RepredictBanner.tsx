@@ -41,12 +41,12 @@ export function RepredictBanner({ runId, onDone }: { runId: string; onDone?: () 
   const changed = run.stats.changed ?? 0;
   const compared = run.stats.compared_with_previous ?? 0;
   return (
-    <div className="rounded-md border border-teal-200 bg-teal-50 px-3 py-2 text-sm text-teal-900">
+    <div className="rounded-md border border-brand-200 bg-brand-50 px-3 py-2 text-sm text-brand-900">
       <p>
         <span className="font-medium">
           This changed {changed} prediction{changed === 1 ? "" : "s"} in your backlog
         </span>{" "}
-        <span className="text-teal-800">({compared} cases re-predicted)</span>
+        <span className="text-brand-800">({compared} cases re-predicted)</span>
         {changed > 0 && (
           <button type="button" onClick={() => setOpen(!open)} className="ml-2 underline">
             {open ? "Hide" : "Show"}

@@ -5,7 +5,20 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* Warm palette around the intern (components/InternAvatar.tsx): orange shell, navy cap. */
+@theme {
+  --color-brand-50: #fff4ec;
+  --color-brand-100: #ffe4d1;
+  --color-brand-200: #fec7a2;
+  --color-brand-500: #fb9150;
+  --color-brand-600: #e8692a;
+  --color-brand-700: #b94d17;
+  --color-brand-800: #8f3a12;
+  --color-cap-700: #2a2766;
+  --color-cap-900: #1a1846;
+}
+
 body {
-  background: #f7f7f5;
-  color: #1c1c1a;
+  background: #fbf7f2;
+  color: #2b211c;
 }

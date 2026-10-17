@@ -17,7 +17,7 @@ const pct = (x: number | null | undefined, d = 0) => (x === null || x === undefi
 function Bar({ value, max, ok }: { value: number; max: number; ok: boolean }) {
   return (
     <div className="h-1.5 w-full overflow-hidden rounded-full bg-stone-200">
-      <div className={`h-full ${ok ? "bg-emerald-600" : "bg-teal-600"}`} style={{ width: `${Math.min(100, (100 * value) / Math.max(1, max))}%` }} />
+      <div className={`h-full ${ok ? "bg-emerald-600" : "bg-brand-600"}`} style={{ width: `${Math.min(100, (100 * value) / Math.max(1, max))}%` }} />
     </div>
   );
 }

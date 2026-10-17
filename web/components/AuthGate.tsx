@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { InternAvatar } from "@/components/InternAvatar";
 import { useUser } from "@/lib/user";
 
 function SignIn() {
@@ -10,8 +11,9 @@ function SignIn() {
   const [problem, setProblem] = useState<string | null>(null);
 
   return (
-    <div className="mx-auto max-w-sm space-y-4 rounded-lg border border-stone-200 bg-white p-6">
-      <h1 className="text-lg font-semibold">Sign in</h1>
+    <div className="mx-auto max-w-sm space-y-4 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-brand-100">
+      <InternAvatar mood="hello" size={80} />
+      <h1 className="text-lg font-semibold text-cap-900">Sign in</h1>
       {sent ? (
         <p className="text-sm text-stone-600">Check {email} for a sign-in link. You can close this tab.</p>
       ) : (

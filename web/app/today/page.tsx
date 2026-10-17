@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { InternAvatar } from "@/components/InternAvatar";
 import { RepredictBanner } from "@/components/RepredictBanner";
 import { TaskTypeTabs } from "@/components/TaskTypeTabs";
 import { TeachingCard } from "@/components/teaching/TeachingCard";
@@ -105,7 +106,7 @@ export default function TodayPage() {
         <p className="text-sm text-stone-500">The teaching queue is the mentor&apos;s. You see the totals above.</p>
       ) : !summary?.run_id ? (
         <p className="text-sm text-stone-500">
-          Nothing to teach yet. <Link href="/backtest" className="text-teal-700 underline">Run a backtest</Link> first.
+          Nothing to teach yet. <Link href="/backtest" className="text-brand-700 underline">Run a backtest</Link> first.
         </p>
       ) : card ? (
         <TeachingCard
@@ -128,9 +129,12 @@ export default function TodayPage() {
           }}
         />
       ) : (
-        <p className="rounded-lg border border-stone-200 bg-white p-5 text-sm text-stone-600">
-          All caught up. Nothing in this backtest needs you. See <Link href="/learned" className="text-teal-700 underline">what the intern has learned</Link>.
-        </p>
+        <div className="flex items-center gap-4 rounded-2xl bg-white p-5 text-sm text-stone-600 shadow-sm ring-1 ring-stone-200">
+          <InternAvatar mood="resting" size={88} />
+          <p>
+            All caught up. Nothing in this backtest needs you. See <Link href="/learned" className="text-brand-700 underline">what I&apos;ve learned</Link>.
+          </p>
+        </div>
       )}
     </div>
   );

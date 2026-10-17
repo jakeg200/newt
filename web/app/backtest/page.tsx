@@ -209,7 +209,7 @@ export default function BacktestPage() {
                 type="button"
                 disabled={!estimate || estimate.cases === 0 || active}
                 onClick={start}
-                className="w-full rounded-md bg-teal-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-800 disabled:opacity-40"
+                className="w-full rounded-md bg-brand-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-800 disabled:opacity-40"
               >
                 {active ? "A backtest is running…" : "Start backtest"}
               </button>
@@ -221,7 +221,7 @@ export default function BacktestPage() {
             <div className="flex items-center justify-between">
               <h2 className="font-medium">Agents</h2>
               {canRun && !adding && (
-                <button type="button" onClick={() => setAdding(true)} className="text-sm text-teal-700 hover:underline">
+                <button type="button" onClick={() => setAdding(true)} className="text-sm text-brand-700 hover:underline">
                   Register external agent
                 </button>
               )}

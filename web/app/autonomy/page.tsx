@@ -61,7 +61,7 @@ function Draft({ card, decisions, onDone }: { card: DraftCard; decisions: string
       <div className="flex flex-wrap gap-2">
         {!editing ? (
           <>
-            <button type="button" disabled={busy} className="rounded-md bg-teal-700 px-3 py-1.5 text-sm font-medium text-white"
+            <button type="button" disabled={busy} className="rounded-md bg-brand-700 px-3 py-1.5 text-sm font-medium text-white"
                     onClick={() => act(async () => { await api.approveDraft(card.prediction_id); return "Approved as drafted."; })}>
               Approve
             </button>
@@ -72,7 +72,7 @@ function Draft({ card, decisions, onDone }: { card: DraftCard; decisions: string
           </>
         ) : (
           <>
-            <button type="button" disabled={busy} className="rounded-md bg-teal-700 px-3 py-1.5 text-sm font-medium text-white"
+            <button type="button" disabled={busy} className="rounded-md bg-brand-700 px-3 py-1.5 text-sm font-medium text-white"
                     onClick={() => act(async () => {
                       const r = decision === card.agent.decision
                         ? await api.approveDraft(card.prediction_id, replyKey ? { text_outputs: { [replyKey]: reply } } : {})

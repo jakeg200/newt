@@ -62,7 +62,7 @@ export function Proposal({ row, role, agentId, onChanged }: { row: BoardRow; rol
   return (
     <div className="space-y-5">
       {error && <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{error}</p>}
-      {message && <p className="rounded-md border border-teal-200 bg-teal-50 px-3 py-2 text-sm text-teal-900">{message}</p>}
+      {message && <p className="rounded-md border border-brand-200 bg-brand-50 px-3 py-2 text-sm text-brand-900">{message}</p>}
 
       {!ev ? (
         <p className="text-sm text-stone-500">Working out the evidence…</p>
@@ -129,7 +129,7 @@ export function Proposal({ row, role, agentId, onChanged }: { row: BoardRow; rol
 
           <section className="flex flex-wrap gap-2 border-t border-stone-100 pt-4">
             {canSignSupervised && (
-              <button type="button" disabled={!ev.eligible || !!busy} className={`${button} bg-teal-700 text-white`}
+              <button type="button" disabled={!ev.eligible || !!busy} className={`${button} bg-brand-700 text-white`}
                       onClick={() => run("sign", async () => { await api.graduate(row.id, "supervised"); return "Signed. The intern now drafts and you approve."; })}>
                 Sign: start supervised practice
               </button>

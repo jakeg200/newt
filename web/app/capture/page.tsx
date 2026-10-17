@@ -117,7 +117,7 @@ function CapturePage() {
       </div>
 
       {notice && (
-        <div className="flex justify-between gap-3 rounded-md border border-teal-200 bg-teal-50 px-3 py-2 text-sm text-teal-900">
+        <div className="flex justify-between gap-3 rounded-md border border-brand-200 bg-brand-50 px-3 py-2 text-sm text-brand-900">
           <span>{notice}</span>
           <button type="button" onClick={() => setNotice(null)}>Dismiss</button>
         </div>
@@ -217,7 +217,7 @@ function CapturePage() {
                       </td>
                       <td className="whitespace-nowrap px-3 py-2">
                         {c.decision ? (
-                          <span className="rounded bg-teal-50 px-1.5 py-0.5 text-xs text-teal-800">{c.decision.replace(/_/g, " ")}</span>
+                          <span className="rounded bg-brand-50 px-1.5 py-0.5 text-xs text-brand-800">{c.decision.replace(/_/g, " ")}</span>
                         ) : (
                           <span className="text-xs text-stone-400">waiting</span>
                         )}

@@ -76,7 +76,7 @@ export function RunResults({ run, canSeeCases }: { run: BacktestRun; canSeeCases
       <div className="space-y-2 text-sm">
         <p>{run.status === "queued" ? "Waiting to start…" : `Predicting case ${n} of ${total}…`}</p>
         <div className="h-2 overflow-hidden rounded-full bg-stone-200">
-          <div className="h-full bg-teal-600 transition-all" style={{ width: total ? `${(100 * n) / total}%` : "4%" }} />
+          <div className="h-full bg-brand-600 transition-all" style={{ width: total ? `${(100 * n) / total}%` : "4%" }} />
         </div>
         {run.cost_usd > 0 && <p className="text-xs text-stone-500">${run.cost_usd.toFixed(2)} so far</p>}
       </div>

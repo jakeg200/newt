@@ -167,7 +167,7 @@ export default function LearnedPage() {
               setInferring(false);
             }
           }}
-          className="rounded-md bg-teal-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-800 disabled:opacity-40"
+          className="rounded-md bg-brand-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-800 disabled:opacity-40"
         >
           {inferring ? "Reading your decisions…" : "Find rules in my decisions"}
         </button>
