@@ -98,6 +98,114 @@ export interface Handbook {
   approved_at: string | null;
 }
 
+export interface TaskTypeInfo {
+  id: string;
+  name: string;
+  team: string;
+  status: string;
+  inputs: string[];
+  decision: string[];
+}
+
+export type Provider = "email_upload" | "gmail" | "csv" | "rest";
+
+export interface RunStats {
+  items_received: number;
+  cases_created: number;
+  duplicate_items: number;
+  actions_received: number;
+  duplicate_actions: number;
+  actions_matched: number;
+  actions_unmatched: number;
+  actions_without_decision: number;
+  earlier_actions_matched: number;
+  match_rate: number | null;
+  errors: string[];
+  error_count: number;
+  redactions: Record<string, number>;
+  [method: `matched_${string}`]: number;
+}
+
+export interface CaptureRun {
+  id: string;
+  connection_id: string;
+  started_at: string;
+  finished_at: string | null;
+  stats: RunStats;
+}
+
+export interface ConnectionInfo {
+  id: string;
+  name: string;
+  provider: Provider;
+  task_type_id: string;
+  status: "pending" | "active" | "paused";
+  filter: { label?: string };
+  mentor_addresses: string[];
+  body_input: string | null;
+  created_at: string;
+  cases: number;
+  decided: number;
+  last_run: { id: string; started_at: string; stats: RunStats } | null;
+  push_token?: string;
+  push_url?: string;
+}
+
+export interface NewConnection {
+  name: string;
+  provider: Provider;
+  task_type_id: string;
+  mentor_addresses?: string[];
+  body_input?: string;
+  label?: string;
+  columns?: Record<string, unknown>;
+  consent?: boolean;
+}
+
+export interface Unmatched {
+  id: string;
+  acted_at: string;
+  reason: string;
+  summary: { kind: string; subject: string; refs: string[] };
+}
+
+export interface CaseSummary {
+  id: string;
+  connection_id: string;
+  source_ref: string;
+  received_at: string;
+  status: "open" | "decided";
+  is_backtest: boolean;
+  subject: string;
+  decision: string | null;
+  match_method: string | null;
+  action_count: number;
+}
+
+export interface CaseDetail extends CaseSummary {
+  snapshot: {
+    subject: string;
+    from: string | null;
+    inputs: Record<string, string>;
+    attachments: string[];
+    history: { at: string; from: string | null; text: string }[];
+  };
+  actions: {
+    id: string;
+    type: string;
+    acted_at: string;
+    match_method: string | null;
+    payload: {
+      decision: string | null;
+      fields?: Record<string, unknown>;
+      text_outputs?: Record<string, string>;
+      note?: string;
+      subject?: string;
+      recipients?: string[];
+    };
+  }[];
+}
+
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
     super(message);
@@ -154,4 +262,22 @@ export const api = {
     request<Handbook>(`/orientation/handbook/${id}`, { method: "PATCH", body: JSON.stringify({ content }) }),
   approve: (id: string) => request<Handbook>(`/orientation/handbook/${id}/approve`, { method: "POST" }),
   revise: (id: string) => request<Handbook>(`/orientation/handbook/${id}/revise`, { method: "POST" }),
+
+  taskTypes: () => request<TaskTypeInfo[]>("/task-types"),
+  connections: (taskTypeId: string) => request<ConnectionInfo[]>(`/connections?task_type_id=${taskTypeId}`),
+  createConnection: (body: NewConnection) => request<ConnectionInfo>("/connections", { method: "POST", body: JSON.stringify(body) }),
+  updateConnection: (id: string, body: { name?: string; status?: "active" | "paused" }) =>
+    request<ConnectionInfo>(`/connections/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  deleteConnection: (id: string) => request<void>(`/connections/${id}`, { method: "DELETE" }),
+  importFiles: (id: string, files: File[]) => {
+    const form = new FormData();
+    files.forEach((f) => form.append("files", f));
+    return request<CaptureRun>(`/connections/${id}/import`, { method: "POST", body: form });
+  },
+  sync: (id: string) => request<CaptureRun>(`/connections/${id}/sync`, { method: "POST" }),
+  oauthStart: (id: string) => request<{ url: string }>(`/connections/${id}/oauth/start`),
+  unmatched: (id: string) => request<Unmatched[]>(`/connections/${id}/unmatched`),
+  cases: (taskTypeId: string, offset = 0, limit = 50) =>
+    request<{ total: number; items: CaseSummary[] }>(`/cases?task_type_id=${taskTypeId}&limit=${limit}&offset=${offset}`),
+  caseDetail: (id: string) => request<CaseDetail>(`/cases/${id}`),
 };

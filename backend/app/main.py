@@ -3,14 +3,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.api import orientation
+from app.api import capture, orientation
 from app.auth import current_user
 from app.config import get_settings
 from app.db import get_session
+from app.logs import configure_logging
 from app.models import Apprenticeship, Agent, Org, TaskType, User
 from app.task_types import load_all
 
-app = FastAPI(title="Agent Onboarding API", version="0.1.0")
+configure_logging()
+app = FastAPI(title="Agent Onboarding API", version="0.2.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=get_settings().cors_origins,
@@ -18,6 +20,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(orientation.router)
+app.include_router(capture.router)
 
 
 @app.get("/health")
@@ -39,14 +42,18 @@ def me(user: User = Depends(current_user)) -> dict:
 
 @app.get("/task-types")
 def task_types(user: User = Depends(current_user), session: Session = Depends(get_session)) -> list[dict]:
-    rows = session.scalars(
-        select(TaskType)
+    rows = session.execute(
+        select(TaskType, Apprenticeship.team)
         .join(Apprenticeship, TaskType.apprenticeship_id == Apprenticeship.id)
         .join(Agent, Apprenticeship.agent_id == Agent.id)
         .where(Agent.org_id == user.org_id)
         .order_by(TaskType.name)
     ).all()
-    return [{"id": t.id, "name": t.name, "status": t.status, "tau": t.tau} for t in rows]
+    return [
+        {"id": t.id, "name": t.name, "team": team, "status": t.status, "tau": t.tau,
+         "inputs": t.config.get("inputs", []), "decision": t.config.get("decision", [])}
+        for t, team in rows
+    ]
 
 
 @app.get("/dev/users")

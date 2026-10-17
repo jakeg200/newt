@@ -58,14 +58,44 @@ class Consent(Base):
 
 
 class Connection(Base):
+    """Where items and the mentor's actions come from, scoped to one task type."""
+
     __tablename__ = "connections"
     id: Mapped[str] = pk()
     org_id: Mapped[str] = fk("orgs.id")
-    provider: Mapped[str] = mapped_column(String(50))
+    task_type_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("task_types.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(200), default="")
+    provider: Mapped[str] = mapped_column(String(50))  # email_upload | gmail | csv | rest
     scopes: Mapped[dict] = mapped_column(Json, default=dict)
-    filter: Mapped[dict] = mapped_column(Json, default=dict)
+    filter: Mapped[dict] = mapped_column(Json, default=dict)  # e.g. {"label": "AP/Mismatch"}
+    config: Mapped[dict] = mapped_column(Json, default=dict)  # mentor addresses, column maps, push token hash
     status: Mapped[str] = mapped_column(String(20), default="pending")
     encrypted_tokens: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class CaptureRun(Base):
+    """One import, sync or push: what came in and how well actions matched."""
+
+    __tablename__ = "capture_runs"
+    id: Mapped[str] = pk()
+    connection_id: Mapped[str] = fk("connections.id")
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    stats: Mapped[dict] = mapped_column(Json, default=dict)
+
+
+class UnmatchedAction(Base):
+    """A mentor action we couldn't tie to a case. Kept (redacted) so someone can review it."""
+
+    __tablename__ = "unmatched_actions"
+    id: Mapped[str] = pk()
+    connection_id: Mapped[str] = fk("connections.id")
+    run_id: Mapped[str] = fk("capture_runs.id")
+    source_ref: Mapped[str] = mapped_column(String(500))
+    acted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    reason: Mapped[str] = mapped_column(String(200))
+    summary: Mapped[dict] = mapped_column(Json, default=dict)
 
 
 class SourceDocument(Base):
@@ -167,13 +197,16 @@ class TaskType(Base):
 
 class Case(Base):
     __tablename__ = "cases"
+    __table_args__ = (UniqueConstraint("connection_id", "source_ref"),)
     id: Mapped[str] = pk()
     task_type_id: Mapped[str] = fk("task_types.id")
+    connection_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("connections.id", ondelete="CASCADE"), index=True)
     source_ref: Mapped[str] = mapped_column(String(500))
     received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     snapshot: Mapped[dict] = mapped_column(Json)  # redacted inputs as of decision time
+    match_keys: Mapped[dict] = mapped_column(Json, default=dict)  # hashed ids and reference tokens, no content
     is_backtest: Mapped[bool] = mapped_column(Boolean, default=False)
-    status: Mapped[str] = mapped_column(String(20), default="open")
+    status: Mapped[str] = mapped_column(String(20), default="open")  # open | decided
 
 
 class Prediction(Base):
@@ -194,10 +227,12 @@ class HumanAction(Base):
     __tablename__ = "human_actions"
     id: Mapped[str] = pk()
     case_id: Mapped[str] = fk("cases.id")
-    action_type: Mapped[str] = mapped_column(String(50))
-    payload: Mapped[dict] = mapped_column(Json)
+    action_type: Mapped[str] = mapped_column(String(50))  # decision | reply | forward | label | status
+    payload: Mapped[dict] = mapped_column(Json)  # decision, fields, text_outputs (redacted)
     acted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     source: Mapped[str] = mapped_column(String(50))
+    source_ref: Mapped[str | None] = mapped_column(String(500))
+    match_method: Mapped[str | None] = mapped_column(String(30))  # explicit | reply_header | thread | reference
 
 
 class Comparison(Base):

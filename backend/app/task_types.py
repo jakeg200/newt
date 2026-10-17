@@ -27,6 +27,25 @@ class FieldSpec(BaseModel):
         return self
 
 
+class CaptureRule(BaseModel):
+    """How an observed mentor action translates into a decision, e.g. a reply to the sender
+    means "query_supplier". Rules are checked in order; the first match wins."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    action: Literal["reply", "forward", "label", "status"]
+    label: str | None = None  # for "label"
+    status: str | None = None  # for "status"
+    decision: str
+
+
+class CaptureConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    decision_rules: list[CaptureRule] = Field(default_factory=list)
+    reply_text_output: str | None = None  # which text output a mentor's reply fills
+
+
 class TaskTypeConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -40,6 +59,17 @@ class TaskTypeConfig(BaseModel):
     hard_rules: list[str] = Field(default_factory=list)
     alpha: float = Field(gt=0, lt=0.5)
     min_cases: int = Field(ge=1)
+    capture: CaptureConfig = Field(default_factory=CaptureConfig)
+
+    @model_validator(mode="after")
+    def _capture_matches_task(self) -> "TaskTypeConfig":
+        for rule in self.capture.decision_rules:
+            if rule.decision not in self.decision:
+                raise ValueError(f"capture rule decision {rule.decision!r} is not one of {self.decision}")
+        out = self.capture.reply_text_output
+        if out is not None and out not in self.text_outputs:
+            raise ValueError(f"capture.reply_text_output {out!r} is not one of {self.text_outputs}")
+        return self
 
     @field_validator("decision", "inputs")
     @classmethod

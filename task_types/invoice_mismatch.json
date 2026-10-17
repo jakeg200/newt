@@ -16,5 +16,14 @@
   "allowed_actions": ["draft_reply", "set_status"],
   "hard_rules": ["amount above 5000 GBP", "supplier marked key account"],
   "alpha": 0.02,
-  "min_cases": 150
+  "min_cases": 150,
+  "capture": {
+    "decision_rules": [
+      {"action": "label", "label": "Approved", "decision": "approve"},
+      {"action": "status", "status": "approved", "decision": "approve"},
+      {"action": "reply", "decision": "query_supplier"},
+      {"action": "forward", "decision": "escalate"}
+    ],
+    "reply_text_output": "supplier_email"
+  }
 }

@@ -20,3 +20,11 @@ Defaults taken so the build doesn't stop to ask. Change any of them by editing t
 | 2026-10-17 | Approved handbooks are frozen; changes start a revision (new draft version) | The approved version is what the agent was certified against |
 | 2026-10-17 | Policy documents are stored unredacted; redaction applies to case data from M2 | They're company documents, and redacting them would remove escalation contacts the handbook needs |
 | 2026-10-17 | Handbook drafting runs inside the request | Simple, and fine under 2 minutes; move to the jobs table if it grows |
+| 2026-10-17 | Each connection belongs to one task type | Keeps "which task is this item?" out of code; a Gmail label or export per task type does the routing |
+| 2026-10-17 | Personal data becomes keyed pseudonyms (`[EMAIL 3fa9c1]`), never stored raw; ids and addresses kept only as keyed hashes | Redact before storage, while keeping "this reply went to the sender" visible to the agent |
+| 2026-10-17 | The matcher leaves ambiguous actions unmatched rather than guessing | A wrong match corrupts the track record; an unmatched one only costs coverage |
+| 2026-10-17 | Unmatched actions are stored redacted and hashed, and retried when new cases arrive | Upload order and slow sources shouldn't lose evidence |
+| 2026-10-17 | Decisions are inferred from actions through rules in the task-type config (`capture.decision_rules`) | Industry specifics stay in config; unknown actions are kept with no decision instead of being forced into one |
+| 2026-10-17 | Gmail scope is `gmail.readonly`, filtered to one label; tokens are Fernet-encrypted with a key derived from `APP_SECRET` | Least privilege, and nothing is readable from a database dump alone |
+| 2026-10-17 | Mail from before a Gmail connection was made is backtest; after that, live | Matches how shadowing starts: history first, then live |
+| 2026-10-17 | Captured cases are visible to the mentor and admins only | It's the mentor's work; managers see aggregates (M6) |

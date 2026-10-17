@@ -114,6 +114,10 @@ def seed(session: Session) -> Org:
             session.add(task_type)
             session.flush()
             _generate_cases(session, task_type, config, rng)
+        elif task_type.config_hash != config.config_hash():
+            # The synthetic org follows the configs on disk. Real orgs version config changes (M5).
+            task_type.config = config.model_dump(mode="json")
+            task_type.config_hash = config.config_hash()
 
     session.commit()
     return org

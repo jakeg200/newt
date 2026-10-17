@@ -1,0 +1,16 @@
+Message-ID: <act6@synthetic.test>
+From: sarah.k@synthetic.test
+To: accounts@contoso.example
+Date: Wed, 04 Mar 2026 16:36:00 +0000
+Subject: Re: Invoice INV-1007 (Contoso Facilities)
+In-Reply-To: <inv6@contoso.example>
+References: <inv6@contoso.example>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+
+Hi, the quantity on INV-1007 doesn't match the goods received note. Please se=
+nd a credit note.
+
+On Mon, someone wrote:
+> Please find attached our invoice for goods delivered

@@ -1,0 +1,19 @@
+Message-ID: <inv0@northwind.example>
+From: billing@northwind.example
+To: sarah.k@synthetic.test
+Date: Mon, 02 Mar 2026 08:30:00 +0000
+Subject: Invoice INV-1001 (Northwind Logistics)
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+
+Hello,
+
+Please find attached our invoice for goods delivered. Invoice INV-1001 agains=
+t PO-7700 for =C2=A31200.00.
+Bank details have not changed: sort code 20-45-77, account number 41234567, I=
+BAN GB33BUKB20201555555555.
+
+Kind regards,
+Jo Bloggs
+jo.bloggs@northwind.example | 07700 900123

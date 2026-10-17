@@ -19,6 +19,7 @@ docs/DECISIONS.md; anything only Jake can provide goes in docs/NEEDS_JAKE.md.
 - Seed the synthetic org: `python -m app.seed`
 - Run the API: `python -m uvicorn app.main:app --reload`
 - Load the sample AP policies (API running): `python scripts/upload_samples.py`
+- Regenerate the capture samples (test mailbox and ledger CSV): `python scripts/make_sample_capture.py`
 
 Web (run from `web/`): `npm run dev` (http://localhost:3000), `npx tsc --noEmit`, `npm run lint`.
 
@@ -40,3 +41,6 @@ offline drafter (`app/orientation/offline.py`); tests always use `FakeProvider`,
   task type's `allowed_actions` whitelist.
 - No time travel in backtests: a prediction sees only what existed before the decision timestamp.
 - No score, ranking or report about the mentor as a person.
+- Captured content is redacted (`app/capture/redact.py`) before it is stored; ids and addresses
+  are stored only as keyed hashes (`app/capture/keys.py`). Never add a column that holds raw
+  message content or addresses.

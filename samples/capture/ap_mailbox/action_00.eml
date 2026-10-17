@@ -1,0 +1,16 @@
+Message-ID: <act0@synthetic.test>
+From: sarah.k@synthetic.test
+To: billing@northwind.example
+Date: Mon, 02 Mar 2026 10:30:00 +0000
+Subject: Re: Invoice INV-1001 (Northwind Logistics)
+In-Reply-To: <inv0@northwind.example>
+References: <inv0@northwind.example>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+
+Hi, the quantity on INV-1001 doesn't match the goods received note. Please se=
+nd a credit note.
+
+On Mon, someone wrote:
+> Please find attached our invoice for goods delivered

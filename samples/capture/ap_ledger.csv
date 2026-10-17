@@ -1,0 +1,21 @@
+invoice_id,received,supplier,description,po,outcome,decided,reason,gl,email_sent
+INV-2001,02/03/2026 08:30,Supplier 0,"Invoice INV-2001, 3 lines",PO-8800,Approved,2026-03-02 11:30,price,6400,
+INV-2002,02/03/2026 13:30,Supplier 1,"Invoice INV-2002, 3 lines",PO-8801,Queried,2026-03-02 16:30,price,6400,"Please send a credit note for INV-2002, call me on 07700 900123"
+INV-2003,02/03/2026 18:30,Supplier 2,"Invoice INV-2003, 3 lines",PO-8802,Escalated,2026-03-02 21:30,price,6400,
+INV-2004,02/03/2026 23:30,Supplier 3,"Invoice INV-2004, 3 lines",PO-8803,Approved,2026-03-03 02:30,price,6400,
+INV-2005,03/03/2026 04:30,Supplier 0,"Invoice INV-2005, 3 lines",PO-8804,Queried,2026-03-03 07:30,price,6400,"Please send a credit note for INV-2005, call me on 07700 900123"
+INV-2006,03/03/2026 09:30,Supplier 1,"Invoice INV-2006, 3 lines",PO-8805,Escalated,2026-03-03 12:30,price,6400,
+INV-2007,03/03/2026 14:30,Supplier 2,"Invoice INV-2007, 3 lines",PO-8806,Approved,2026-03-03 17:30,price,6400,
+INV-2008,03/03/2026 19:30,Supplier 3,"Invoice INV-2008, 3 lines",PO-8807,Queried,2026-03-03 22:30,price,6400,"Please send a credit note for INV-2008, call me on 07700 900123"
+INV-2009,04/03/2026 00:30,Supplier 0,"Invoice INV-2009, 3 lines",PO-8808,Escalated,2026-03-04 03:30,price,6400,
+INV-2010,04/03/2026 05:30,Supplier 1,"Invoice INV-2010, 3 lines",PO-8809,Approved,2026-03-04 08:30,price,6400,
+INV-2011,04/03/2026 10:30,Supplier 2,"Invoice INV-2011, 3 lines",PO-8810,Queried,2026-03-04 13:30,price,6400,"Please send a credit note for INV-2011, call me on 07700 900123"
+INV-2012,04/03/2026 15:30,Supplier 3,"Invoice INV-2012, 3 lines",PO-8811,Escalated,2026-03-04 18:30,price,6400,
+INV-2013,04/03/2026 20:30,Supplier 0,"Invoice INV-2013, 3 lines",PO-8812,Approved,2026-03-04 23:30,price,6400,
+INV-2014,05/03/2026 01:30,Supplier 1,"Invoice INV-2014, 3 lines",PO-8813,Queried,2026-03-05 04:30,price,6400,"Please send a credit note for INV-2014, call me on 07700 900123"
+INV-2015,05/03/2026 06:30,Supplier 2,"Invoice INV-2015, 3 lines",PO-8814,Escalated,2026-03-05 09:30,price,6400,
+INV-2016,05/03/2026 11:30,Supplier 3,"Invoice INV-2016, 3 lines",PO-8815,Approved,2026-03-05 14:30,price,6400,
+INV-2017,05/03/2026 16:30,Supplier 0,"Invoice INV-2017, 3 lines",PO-8816,Queried,2026-03-05 19:30,price,6400,"Please send a credit note for INV-2017, call me on 07700 900123"
+INV-2018,05/03/2026 21:30,Supplier 1,"Invoice INV-2018, 3 lines",PO-8817,Escalated,2026-03-06 00:30,price,6400,
+INV-2019,06/03/2026 02:30,Supplier 2,"Invoice INV-2019, 3 lines",PO-8818,Approved,2026-03-06 05:30,price,6400,
+INV-2020,06/03/2026 07:30,Supplier 3,"Invoice INV-2020, 3 lines",PO-8819,Queried,2026-03-06 10:30,price,6400,"Please send a credit note for INV-2020, call me on 07700 900123"

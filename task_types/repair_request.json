@@ -20,5 +20,13 @@
   "allowed_actions": ["draft_reply", "set_status", "route"],
   "hard_rules": ["gas smell or carbon monoxide", "no heating or hot water in winter"],
   "alpha": 0.02,
-  "min_cases": 150
+  "min_cases": 150,
+  "capture": {
+    "decision_rules": [
+      {"action": "status", "status": "contractor_booked", "decision": "book_contractor"},
+      {"action": "reply", "decision": "ask_for_details"},
+      {"action": "forward", "decision": "escalate"}
+    ],
+    "reply_text_output": "tenant_reply"
+  }
 }

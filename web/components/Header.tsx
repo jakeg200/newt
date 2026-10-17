@@ -6,6 +6,7 @@ import { useUser } from "@/lib/user";
 
 const NAV = [
   { href: "/orientation", label: "Orientation", ready: true },
+  { href: "/capture", label: "Capture", ready: true },
   { href: "#", label: "Today", ready: false },
   { href: "#", label: "Task board", ready: false },
   { href: "#", label: "Manager", ready: false },

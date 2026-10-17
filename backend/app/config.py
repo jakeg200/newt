@@ -19,6 +19,17 @@ class Settings(BaseSettings):
     llm_model: str = "claude-opus-5-5"
     handbook_effort: str = "medium"  # Opus 5.5's default; raise to "high" if drafts miss rules
     cors_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
+    # Keys pseudonyms, match-key hashes and token encryption. Must be set outside dev.
+    app_secret: str = "dev-only-insecure-secret"
+    api_url: str = "http://127.0.0.1:8000"
+    web_url: str = "http://localhost:3000"
+    google_client_id: str | None = None
+    google_client_secret: str | None = None
+
+    def secret(self) -> bytes:
+        if self.env != "dev" and self.app_secret == "dev-only-insecure-secret":
+            raise RuntimeError("APP_SECRET must be set outside dev")
+        return self.app_secret.encode()
 
 
 @lru_cache
