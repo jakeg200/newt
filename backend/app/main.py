@@ -1,14 +1,23 @@
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.api import orientation
 from app.auth import current_user
 from app.config import get_settings
 from app.db import get_session
-from app.models import Apprenticeship, Agent, TaskType, User
+from app.models import Apprenticeship, Agent, Org, TaskType, User
 from app.task_types import load_all
 
-app = FastAPI(title="Agent Onboarding API", version="0.0.1")
+app = FastAPI(title="Agent Onboarding API", version="0.1.0")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=get_settings().cors_origins,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+app.include_router(orientation.router)
 
 
 @app.get("/health")
@@ -38,3 +47,12 @@ def task_types(user: User = Depends(current_user), session: Session = Depends(ge
         .order_by(TaskType.name)
     ).all()
     return [{"id": t.id, "name": t.name, "status": t.status, "tau": t.tau} for t in rows]
+
+
+@app.get("/dev/users")
+def dev_users(session: Session = Depends(get_session)) -> list[dict]:
+    """Lets the web app's user picker stand in for sign-in. Development only."""
+    if get_settings().env != "dev":
+        raise HTTPException(status.HTTP_404_NOT_FOUND)
+    rows = session.execute(select(User, Org).join(Org).order_by(Org.name, User.role, User.name)).all()
+    return [{"id": u.id, "name": u.name, "role": u.role, "email": u.email, "org": o.name} for u, o in rows]

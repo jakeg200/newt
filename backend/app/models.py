@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -68,13 +68,61 @@ class Connection(Base):
     encrypted_tokens: Mapped[str | None] = mapped_column(Text)
 
 
+class SourceDocument(Base):
+    """A policy or procedure document uploaded during orientation."""
+
+    __tablename__ = "source_documents"
+    __table_args__ = (UniqueConstraint("org_id", "team", "sha256"), UniqueConstraint("org_id", "team", "doc_index"))
+    id: Mapped[str] = pk()
+    org_id: Mapped[str] = fk("orgs.id")
+    team: Mapped[str] = mapped_column(String(200))
+    doc_index: Mapped[int] = mapped_column(Integer)  # 1, 2, 3… within the team; prefixes passage labels
+    filename: Mapped[str] = mapped_column(String(300))
+    mime: Mapped[str] = mapped_column(String(100))
+    sha256: Mapped[str] = mapped_column(String(64))
+    size_bytes: Mapped[int] = mapped_column(Integer)
+    uploaded_by: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"))
+    uploaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class Passage(Base):
+    """A citable chunk of a source document. Labels look like "2.7" (document 2, passage 7)."""
+
+    __tablename__ = "passages"
+    __table_args__ = (UniqueConstraint("document_id", "idx"),)
+    id: Mapped[str] = pk()
+    document_id: Mapped[str] = fk("source_documents.id")
+    label: Mapped[str] = mapped_column(String(20))
+    idx: Mapped[int] = mapped_column(Integer)
+    text: Mapped[str] = mapped_column(Text)
+    page: Mapped[int | None] = mapped_column(Integer)
+
+
+class QuestionnaireAnswer(Base):
+    """The mentor's answer to one orientation question. Cited in the handbook as "Q.<key>"."""
+
+    __tablename__ = "questionnaire_answers"
+    __table_args__ = (UniqueConstraint("org_id", "team", "question_key"),)
+    id: Mapped[str] = pk()
+    org_id: Mapped[str] = fk("orgs.id")
+    team: Mapped[str] = mapped_column(String(200))
+    mentor_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"))
+    question_key: Mapped[str] = mapped_column(String(100))
+    question: Mapped[str] = mapped_column(Text)
+    answer: Mapped[str] = mapped_column(Text)
+    answered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
 class Handbook(Base):
     __tablename__ = "handbooks"
     id: Mapped[str] = pk()
     org_id: Mapped[str] = fk("orgs.id")
     team: Mapped[str] = mapped_column(String(200))
     version: Mapped[int] = mapped_column(Integer, default=1)
+    status: Mapped[str] = mapped_column(String(20), default="draft")  # draft | approved | superseded
     content: Mapped[dict] = mapped_column(Json, default=dict)
+    meta: Mapped[dict] = mapped_column(Json, default=dict)  # model, tokens, cost, duration
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     approved_by: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"))
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
@@ -83,7 +131,7 @@ class HandbookSource(Base):
     __tablename__ = "handbook_sources"
     id: Mapped[str] = pk()
     handbook_id: Mapped[str] = fk("handbooks.id")
-    document_ref: Mapped[str] = mapped_column(String(500))
+    document_ref: Mapped[str] = mapped_column(String(500))  # source_documents.id, or "questionnaire"
     extracted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 

@@ -1,0 +1,12 @@
+APPROVAL LIMITS FOR SUPPLIER INVOICES
+Synthetic Co - Finance. Effective 1 April 2026.
+
+Invoices up to £5,000 that pass the three-way match may be approved by any member of the accounts payable team.
+
+Invoices over £5,000 and up to £25,000 must be approved by the Finance Manager, even when they match perfectly.
+
+Invoices over £25,000 must be approved by the Chief Financial Officer. The AP team prepares the match and sends it for approval; it never approves these itself.
+
+Key accounts: invoices from suppliers flagged as key accounts in the supplier record (currently Northwind Logistics, Contoso Facilities and Fabrikam Software) must always be referred to the Finance Manager, whatever the amount.
+
+Approvals are recorded in the Approvals Portal. An approval given by email or chat message does not count and must not be relied on.

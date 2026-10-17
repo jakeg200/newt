@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     supabase_url: str | None = None
     supabase_jwt_secret: str | None = None
     anthropic_api_key: str | None = None
+    llm_model: str = "claude-opus-5-5"
+    handbook_effort: str = "medium"  # Opus 5.5's default; raise to "high" if drafts miss rules
+    cors_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
 
 
 @lru_cache

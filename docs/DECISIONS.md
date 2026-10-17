@@ -12,3 +12,11 @@ Defaults taken so the build doesn't stop to ask. Change any of them by editing t
 | 2026-10-17 | Task-type configs reject unknown keys | A typo in a config should fail loudly, not silently change scoring |
 | 2026-10-17 | Synthetic cases are generated generically from each config (placeholder inputs, random decisions) | Enough to exercise the pipeline in M0; realistic fixtures come with M3 |
 | 2026-10-17 | Background work uses a Postgres/SQLite `jobs` table polled by a worker, no Redis | Brief: one less service to run |
+| 2026-10-17 | Model: `claude-opus-5-5`, adaptive thinking, JSON-schema structured output, streamed; effort `medium` for handbook drafting (configurable via `HANDBOOK_EFFORT`) | Opus 5.5's default effort; keeps a five-document draft inside the 2-minute bar. Raise to `high` if drafts miss rules |
+| 2026-10-17 | Server-side refusal fallback (`fallbacks: "default"`) on every Claude call; the model that actually served is recorded | A false-positive refusal shouldn't stop onboarding, and the track record must name the real model |
+| 2026-10-17 | Passages are labelled `<document>.<passage>` per team; questionnaire answers are `Q.<key>` | Short labels the model can cite reliably and people can read |
+| 2026-10-17 | Handbook items with no valid source block approval; unknown labels are stripped on save | "Every rule links to its source passage" is enforced, not hoped for |
+| 2026-10-17 | Handbook item ids come from a per-version counter and are never reused | Later lessons and audits will refer to rules by id |
+| 2026-10-17 | Approved handbooks are frozen; changes start a revision (new draft version) | The approved version is what the agent was certified against |
+| 2026-10-17 | Policy documents are stored unredacted; redaction applies to case data from M2 | They're company documents, and redacting them would remove escalation contacts the handbook needs |
+| 2026-10-17 | Handbook drafting runs inside the request | Simple, and fine under 2 minutes; move to the jobs table if it grows |

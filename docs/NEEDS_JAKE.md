@@ -2,7 +2,7 @@
 
 Things only you can provide. The build continues against stand-ins until they arrive.
 
-- [ ] `ANTHROPIC_API_KEY` in `backend/.env` (needed from M1 for handbook drafting; M3 for the apprentice)
+- [ ] `ANTHROPIC_API_KEY` in `backend/.env`. Without it, handbooks come from the offline keyword drafter, and M1's 2-minute bar can't be measured with Claude. The apprentice needs it from M3.
 - [ ] Supabase project in an EU region: `DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_JWT_SECRET` in `backend/.env`
 - [ ] A Gmail test account and Google OAuth client for the email connector (M2)
 - [ ] Hosting accounts: Fly.io or Render (EU) for the API, Vercel for the web app (M6)

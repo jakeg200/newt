@@ -18,9 +18,13 @@ docs/DECISIONS.md; anything only Jake can provide goes in docs/NEEDS_JAKE.md.
 - Migrate: `python -m alembic upgrade head`
 - Seed the synthetic org: `python -m app.seed`
 - Run the API: `python -m uvicorn app.main:app --reload`
+- Load the sample AP policies (API running): `python scripts/upload_samples.py`
+
+Web (run from `web/`): `npm run dev` (http://localhost:3000), `npx tsc --noEmit`, `npm run lint`.
 
 `DATABASE_URL` defaults to a local SQLite file for development; set it to the Supabase EU
-Postgres URL for real data. Code must work on both.
+Postgres URL for real data. Code must work on both. Without `ANTHROPIC_API_KEY` the app uses the
+offline drafter (`app/orientation/offline.py`); tests always use `FakeProvider`, never the real API.
 
 ## Rules
 
