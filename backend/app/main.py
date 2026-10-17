@@ -1,18 +1,36 @@
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 
-from app.api import capture, orientation
+from app.api import backtest, capture, orientation
 from app.auth import current_user
 from app.config import get_settings
-from app.db import get_session
+from app.db import get_engine, get_session
 from app.logs import configure_logging
 from app.models import Apprenticeship, Agent, Org, TaskType, User
 from app.task_types import load_all
 
 configure_logging()
-app = FastAPI(title="Agent Onboarding API", version="0.2.0")
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    worker = None
+    if get_settings().inline_worker:
+        from app.worker import InlineWorker
+
+        worker = InlineWorker(sessionmaker(bind=get_engine(), expire_on_commit=False))
+        worker.start()
+    yield
+    if worker:
+        worker.stop()
+
+
+app = FastAPI(title="Agent Onboarding API", version="0.3.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=get_settings().cors_origins,
@@ -21,6 +39,7 @@ app.add_middleware(
 )
 app.include_router(orientation.router)
 app.include_router(capture.router)
+app.include_router(backtest.router)
 
 
 @app.get("/health")

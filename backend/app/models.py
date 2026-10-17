@@ -170,9 +170,12 @@ class Agent(Base):
     id: Mapped[str] = pk()
     org_id: Mapped[str] = fk("orgs.id")
     kind: Mapped[str] = mapped_column(String(20))  # built_in | external
+    name: Mapped[str] = mapped_column(String(200), default="")
     endpoint: Mapped[str | None] = mapped_column(String(500))
     model: Mapped[str] = mapped_column(String(100))
     version: Mapped[str] = mapped_column(String(50))
+    config: Mapped[dict] = mapped_column(Json, default=dict)  # external: encrypted signing secret, timeout
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
 class Apprenticeship(Base):
@@ -209,16 +212,48 @@ class Case(Base):
     status: Mapped[str] = mapped_column(String(20), default="open")  # open | decided
 
 
+class BacktestRun(Base):
+    """Replay of decided history: the agent predicts each case using only what was known when
+    the item arrived, and is scored against what the mentor actually did."""
+
+    __tablename__ = "backtest_runs"
+    id: Mapped[str] = pk()
+    task_type_id: Mapped[str] = fk("task_types.id")
+    agent_id: Mapped[str] = fk("agents.id")
+    requested_by: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"))
+    status: Mapped[str] = mapped_column(String(20), default="queued")  # queued | running | done | failed
+    params: Mapped[dict] = mapped_column(Json, default=dict)  # limit, date range, samples
+    agent_version: Mapped[str] = mapped_column(String(50), default="")
+    model: Mapped[str] = mapped_column(String(100), default="")
+    handbook_version: Mapped[int | None] = mapped_column(Integer)
+    rules_version: Mapped[int | None] = mapped_column(Integer)
+    config_hash: Mapped[str] = mapped_column(String(64), default="")
+    progress: Mapped[dict] = mapped_column(Json, default=dict)  # done, total
+    stats: Mapped[dict] = mapped_column(Json, default=dict)
+    cost_usd: Mapped[float] = mapped_column(Float, default=0.0)
+    error: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 class Prediction(Base):
     __tablename__ = "predictions"
     id: Mapped[str] = pk()
     case_id: Mapped[str] = fk("cases.id")
     agent_id: Mapped[str] = fk("agents.id")
+    run_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("backtest_runs.id", ondelete="CASCADE"), index=True)
     agent_version: Mapped[str] = mapped_column(String(50))
+    model: Mapped[str] = mapped_column(String(100), default="")
     handbook_version: Mapped[int | None] = mapped_column(Integer)
     rules_version: Mapped[int | None] = mapped_column(Integer)
     output: Mapped[dict] = mapped_column(Json)
     confidence: Mapped[float | None] = mapped_column(Float)
+    error: Mapped[str | None] = mapped_column(Text)  # the agent failed; counts as a hand-back, never as agreement
+    input_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    output_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    cost_usd: Mapped[float] = mapped_column(Float, default=0.0)
+    latency_ms: Mapped[int] = mapped_column(Integer, default=0)
     sealed_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
@@ -309,5 +344,9 @@ class Job(Base):
     id: Mapped[str] = pk()
     type: Mapped[str] = mapped_column(String(50))
     payload: Mapped[dict] = mapped_column(Json, default=dict)
-    status: Mapped[str] = mapped_column(String(20), default="queued")
+    status: Mapped[str] = mapped_column(String(20), default="queued")  # queued | running | done | failed
     run_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    error: Mapped[str | None] = mapped_column(Text)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

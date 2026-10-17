@@ -12,6 +12,33 @@ def test_migrations_create_every_model_table(db_url: str):
     assert tables == set(Base.metadata.tables)
 
 
+def test_migrations_keep_data_on_sqlite(db_url: str, session):
+    """SQLite rebuilds tables to alter them; that must never cascade-delete dependent rows."""
+    from alembic import command
+    from alembic.config import Config
+
+    from app.config import BACKEND_DIR
+
+    seed(session)
+    session.close()
+    tables = ["orgs", "users", "agents", "apprenticeships", "task_types", "cases", "human_actions"]
+
+    def counts() -> dict[str, int]:
+        engine = make_engine(db_url)
+        with engine.connect() as conn:
+            out = {t: conn.exec_driver_sql(f"select count(*) from {t}").scalar() for t in tables}
+        engine.dispose()
+        return out
+
+    before = counts()
+    assert before["human_actions"] > 0
+    cfg = Config(str(BACKEND_DIR / "alembic.ini"))
+    cfg.attributes["database_url"] = db_url
+    command.downgrade(cfg, "0002")  # rebuilds cases, connections, agents, predictions…
+    command.upgrade(cfg, "head")
+    assert counts() == before
+
+
 def test_seed_creates_synthetic_org_with_two_task_types(session):
     org = seed(session)
     assert org.is_synthetic

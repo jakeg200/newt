@@ -12,7 +12,8 @@ class Base(DeclarativeBase):
 
 def make_engine(url: str) -> Engine:
     if url.startswith("sqlite"):
-        engine = create_engine(url, connect_args={"check_same_thread": False})
+        # The API and the in-process job worker share the file; wait for locks instead of failing.
+        engine = create_engine(url, connect_args={"check_same_thread": False, "timeout": 30})
 
         @event.listens_for(engine, "connect")
         def _fk_on(dbapi_conn, _record) -> None:  # SQLite ignores foreign keys unless asked

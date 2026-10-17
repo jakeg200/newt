@@ -1,17 +1,16 @@
 """Connections: where a task type's items and the mentor's actions come from."""
 
-import base64
 import hashlib
 import hmac
 import secrets
 from datetime import datetime, timezone
 from typing import Any, Literal
 
-from cryptography.fernet import Fernet, InvalidToken
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app import crypto
 from app.capture.ingest import aware, ingest
 from app.capture.sources import gmail
 from app.capture.sources.email_source import parse_uploads
@@ -29,20 +28,14 @@ class CaptureError(ValueError):
     """A request that can't be done as asked. The message is safe to show users."""
 
 
-def _fernet() -> Fernet:
-    key = hashlib.sha256(b"connection-tokens:" + get_settings().secret()).digest()
-    return Fernet(base64.urlsafe_b64encode(key))
-
-
-def encrypt(value: str) -> str:
-    return _fernet().encrypt(value.encode()).decode()
-
-
 def decrypt(token: str) -> str:
     try:
-        return _fernet().decrypt(token.encode()).decode()
-    except InvalidToken as exc:
+        return crypto.decrypt(token)
+    except crypto.DecryptError as exc:
         raise CaptureError("stored credentials can't be read; reconnect") from exc
+
+
+encrypt = crypto.encrypt
 
 
 def _push_hash(token: str) -> str:

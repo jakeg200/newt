@@ -28,3 +28,14 @@ Defaults taken so the build doesn't stop to ask. Change any of them by editing t
 | 2026-10-17 | Gmail scope is `gmail.readonly`, filtered to one label; tokens are Fernet-encrypted with a key derived from `APP_SECRET` | Least privilege, and nothing is readable from a database dump alone |
 | 2026-10-17 | Mail from before a Gmail connection was made is backtest; after that, live | Matches how shadowing starts: history first, then live |
 | 2026-10-17 | Captured cases are visible to the mentor and admins only | It's the mentor's work; managers see aggregates (M6) |
+| 2026-10-17 | Every context piece records when it existed; the time-travel guard checks all of them and scans the item, handbook and rules for the mentor's own words on the case | A leak must stop the run, not quietly inflate a track record |
+| 2026-10-17 | The handbook and rules are standing knowledge (used whatever their date), but a rule learned from the case being predicted is a leak | The handbook is the agent's training; what the mentor taught on this exact case is the answer |
+| 2026-10-17 | Similar-case retrieval is TF-IDF over redacted text, not embeddings (for now) | No extra service, works on SQLite, deterministic in tests. This replaces the earlier plan to add pgvector in M3 |
+| 2026-10-17 | Built-in apprentice: `claude-opus-5-5`, 5 self-consistency samples, effort `medium`, cached system prompt | The brief's confidence method; caching cuts the repeated handbook to ~5% of input cost |
+| 2026-10-17 | Without an API key the built-in agent is a nearest-past-cases baseline, labelled as such | Everything runs end to end offline, and real agents have a floor to beat |
+| 2026-10-17 | An unknown or wrong critical field makes a case a disagreement, even with the right decision | The brief's agreement rule; graduation bounds rely on it |
+| 2026-10-17 | Agent failures (errors, timeouts, invalid answers) are hand-backs, never agreements or errors in the bound | An agent can't improve its record by failing |
+| 2026-10-17 | External agents: HTTPS only (HTTP localhost in dev), HMAC-SHA256-signed bodies, secret shown once and stored encrypted, private and link-local addresses refused | Vendors can verify us; endpoints can't be used to reach our own network |
+| 2026-10-17 | Backtests select the most recent N decided history cases; earlier ones serve only as past cases | Every predicted case has history to learn from, as in live shadowing |
+| 2026-10-17 | Jobs run in-process in development (`INLINE_WORKER`), in `python -m app.worker` in production | No extra process to run while building |
+| 2026-10-17 | SQLite migrations run with foreign keys off | Table rebuilds on SQLite otherwise cascade-delete dependent rows |

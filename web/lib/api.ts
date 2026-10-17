@@ -206,6 +206,81 @@ export interface CaseDetail extends CaseSummary {
   }[];
 }
 
+export interface AgentInfo {
+  id: string;
+  kind: "built_in" | "external";
+  name: string;
+  endpoint: string | null;
+  model: string;
+  version: string;
+  created_at: string;
+  runs_with: { kind: string; model: string; samples: number; effort?: string; billed_here: boolean };
+  signing_secret?: string;
+}
+
+export interface Estimate {
+  cases_available: number;
+  cases: number;
+  model: string;
+  samples: number;
+  billed_here: boolean;
+  est_cost_usd: number;
+  est_minutes: number | null;
+  calls?: number;
+}
+
+export interface BacktestStats {
+  cases: number;
+  predicted: number;
+  handed_back: number;
+  agreement: number;
+  agreement_rate: number | null;
+  decision_accuracy: number | null;
+  confusion: Record<string, Record<string, number>>;
+  decisions: string[];
+  fields: Record<string, { cases: number; accuracy: number }>;
+  confidence_buckets: { from: number; to: number; cases: number; agreement: number | null }[];
+  errors: Record<string, number>;
+  cost_usd: number;
+  input_tokens: number;
+  output_tokens: number;
+  avg_latency_ms: number;
+  duration_s: number;
+  no_handbook: boolean;
+  text_outputs_pending: number;
+}
+
+export interface BacktestRun {
+  id: string;
+  task_type_id: string;
+  agent_id: string;
+  agent_name: string | null;
+  status: "queued" | "running" | "done" | "failed";
+  params: { limit: number; samples: number };
+  model: string;
+  agent_version: string;
+  handbook_version: number | null;
+  progress: { done?: number; total?: number };
+  stats: BacktestStats | Record<string, never>;
+  cost_usd: number;
+  error: string | null;
+  created_at: string;
+  started_at: string | null;
+  finished_at: string | null;
+}
+
+export interface BacktestCase {
+  case_id: string;
+  received_at: string;
+  subject: string;
+  mentor: { decision: string | null; fields: Record<string, unknown>; text_outputs: Record<string, string> };
+  agent: { decision?: string; rationale?: string; fields?: Record<string, unknown>; text_outputs?: Record<string, string> } | null;
+  confidence: number | null;
+  error: string | null;
+  agreement: boolean | null;
+  field_scores: Record<string, { mentor: unknown; agent: unknown; match: boolean; critical: boolean }>;
+}
+
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
     super(message);
@@ -280,4 +355,15 @@ export const api = {
   cases: (taskTypeId: string, offset = 0, limit = 50) =>
     request<{ total: number; items: CaseSummary[] }>(`/cases?task_type_id=${taskTypeId}&limit=${limit}&offset=${offset}`),
   caseDetail: (id: string) => request<CaseDetail>(`/cases/${id}`),
+
+  agents: () => request<AgentInfo[]>("/agents"),
+  createAgent: (body: { name: string; endpoint: string; version: string; model?: string }) =>
+    request<AgentInfo>("/agents", { method: "POST", body: JSON.stringify(body) }),
+  estimate: (taskTypeId: string, agentId: string | null, limit: number) =>
+    request<Estimate>(`/backtests/estimate?task_type_id=${taskTypeId}&limit=${limit}${agentId ? `&agent_id=${agentId}` : ""}`),
+  startBacktest: (body: { task_type_id: string; agent_id?: string | null; limit: number }) =>
+    request<BacktestRun>("/backtests", { method: "POST", body: JSON.stringify(body) }),
+  backtests: (taskTypeId: string) => request<BacktestRun[]>(`/backtests?task_type_id=${taskTypeId}`),
+  backtestCases: (id: string, only: "disagreements" | "handed_back" | "all") =>
+    request<{ items: BacktestCase[] }>(`/backtests/${id}/cases?only=${only}&limit=100`),
 };

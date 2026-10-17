@@ -20,9 +20,18 @@ def run_migrations_offline() -> None:
 def run_migrations_online() -> None:
     engine = make_engine(_url())
     with engine.connect() as connection:
+        sqlite = connection.dialect.name == "sqlite"
+        if sqlite:
+            # SQLite alters tables by copying them and dropping the original. With foreign keys
+            # on, that drop cascades and deletes every dependent row. Off for the migration only.
+            connection.exec_driver_sql("PRAGMA foreign_keys=OFF")
+            connection.commit()  # end the implicit transaction so Alembic's own one commits
         context.configure(connection=connection, target_metadata=target_metadata, render_as_batch=True)
         with context.begin_transaction():
             context.run_migrations()
+        if sqlite:
+            connection.exec_driver_sql("PRAGMA foreign_keys=ON")
+            connection.commit()
     engine.dispose()
 
 

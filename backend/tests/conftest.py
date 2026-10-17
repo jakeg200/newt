@@ -5,6 +5,8 @@ from pathlib import Path
 import pytest
 
 os.environ["ENV"] = "dev"  # before app imports read settings
+os.environ["INLINE_WORKER"] = "false"  # tests run jobs explicitly, never against dev.db
+os.environ["ANTHROPIC_API_KEY"] = ""  # tests never call the real API, even with a key in .env
 
 from alembic import command  # noqa: E402
 from alembic.config import Config  # noqa: E402

@@ -18,6 +18,12 @@ class Settings(BaseSettings):
     anthropic_api_key: str | None = None
     llm_model: str = "claude-opus-5-5"
     handbook_effort: str = "medium"  # Opus 5.5's default; raise to "high" if drafts miss rules
+    apprentice_model: str = "claude-opus-5-5"
+    apprentice_effort: str = "medium"
+    apprentice_samples: int = 5  # self-consistency: confidence = share of samples that agree
+    backtest_concurrency: int = 16
+    external_agent_timeout_s: float = 30.0
+    inline_worker: bool = True  # dev: the API runs queued jobs itself, no separate worker process
     cors_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
     # Keys pseudonyms, match-key hashes and token encryption. Must be set outside dev.
     app_secret: str = "dev-only-insecure-secret"

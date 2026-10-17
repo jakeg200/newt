@@ -1,0 +1,18 @@
+{
+  "item_ref": "invoice_id",
+  "received_at": "received",
+  "subject": "supplier",
+  "inputs": {
+    "invoice_text": "description",
+    "po_record": "po"
+  },
+  "decision": "outcome",
+  "acted_at": "decided",
+  "fields": {
+    "variance_reason": "reason",
+    "gl_code": "gl"
+  },
+  "text_outputs": {
+    "supplier_email": "email_sent"
+  }
+}
