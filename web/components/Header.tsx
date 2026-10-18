@@ -3,17 +3,19 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { InternAvatar } from "@/components/InternAvatar";
+import { BRAND } from "@/lib/brand";
 import { useUser } from "@/lib/user";
 
+// Grouped by the intern's journey: onboard it, teach it, graduate it, manage it.
 const NAV = [
-  { href: "/orientation", label: "Orientation", ready: true },
-  { href: "/capture", label: "Capture", ready: true },
-  { href: "/backtest", label: "Backtest", ready: true },
-  { href: "/today", label: "Today", ready: true },
-  { href: "/learned", label: "What I've learned", ready: true },
-  { href: "/board", label: "Task board", ready: true },
-  { href: "/autonomy", label: "Autonomy", ready: true },
-  { href: "/manager", label: "Manager", ready: true },
+  { href: "/orientation", label: "Orientation" },
+  { href: "/capture", label: "Capture" },
+  { href: "/today", label: "Today" },
+  { href: "/learned", label: "Learned" },
+  { href: "/backtest", label: "Backtest" },
+  { href: "/board", label: "Task board" },
+  { href: "/autonomy", label: "Autonomy" },
+  { href: "/manager", label: "Manager" },
 ];
 
 export function Header() {
@@ -21,39 +23,33 @@ export function Header() {
   const pathname = usePathname();
 
   return (
-    <header className="border-b border-stone-200 bg-white">
-      <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-3 px-4 py-3 sm:px-6">
-        <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight text-cap-900">
+    <header className="sticky top-0 z-30 px-3 pt-3 sm:px-6">
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 rounded-3xl border border-stone-200 bg-white/90 px-4 py-2.5 shadow-[0_8px_30px_-16px_rgb(27_23_20/0.35)] backdrop-blur">
+        <Link href="/" className="flex items-center gap-2 font-[family-name:var(--font-display)] text-lg font-extrabold tracking-tight">
           <InternAvatar size={28} decorative />
-          Agent Onboarding
+          {BRAND}
         </Link>
-        <nav className="flex flex-wrap gap-1 text-sm">
-          {NAV.map((item) =>
-            item.ready ? (
+        <nav className="order-3 -mx-1 flex w-full gap-1 overflow-x-auto text-sm lg:order-none lg:w-auto" aria-label="Main">
+          {NAV.map((item) => {
+            const on = pathname.startsWith(item.href);
+            return (
               <Link
-                key={item.label}
+                key={item.href}
                 href={item.href}
-                className={`rounded-md px-2.5 py-1.5 ${
-                  pathname.startsWith(item.href) ? "bg-brand-100 font-medium text-brand-800" : "text-stone-600 hover:bg-brand-50"
-                }`}
+                aria-current={on ? "page" : undefined}
+                className={`shrink-0 rounded-full px-3 py-1.5 transition-colors ${on ? "bg-ink font-medium text-white" : "text-stone-600 hover:bg-stone-100 hover:text-ink"}`}
               >
                 {item.label}
               </Link>
-            ) : (
-              <span key={item.label} className="cursor-default px-2.5 py-1.5 text-stone-400" title="Coming in a later milestone">
-                {item.label}
-              </span>
-            ),
-          )}
+            );
+          })}
         </nav>
         <div className="ml-auto flex items-center gap-2 text-sm">
           {mode === "supabase" ? (
             user && (
               <>
-                <span className="text-stone-600">
-                  {user.name} · {user.role}
-                </span>
-                <button type="button" onClick={() => signOut()} className="rounded-md px-2 py-1 text-stone-500 hover:bg-stone-100">
+                <span className="text-stone-600">{user.name}</span>
+                <button type="button" onClick={() => signOut()} className="rounded-full px-3 py-1.5 text-stone-500 hover:bg-stone-100">
                   Sign out
                 </button>
               </>
@@ -62,14 +58,12 @@ export function Header() {
             <span className="text-red-700">{error}</span>
           ) : (
             <>
-              <label htmlFor="dev-user" className="text-stone-500">
-                Acting as
-              </label>
+              <label htmlFor="dev-user" className="hidden text-stone-500 sm:inline">Acting as</label>
               <select
                 id="dev-user"
                 value={user?.id ?? ""}
                 onChange={(e) => setUser(e.target.value)}
-                className="rounded-md border border-stone-300 bg-white px-2 py-1.5"
+                className="max-w-52 rounded-full border border-stone-200 bg-stone-50 px-3 py-1.5"
               >
                 {users.map((u) => (
                   <option key={u.id} value={u.id}>

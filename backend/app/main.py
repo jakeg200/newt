@@ -11,6 +11,7 @@ from app.auth import current_user
 from app.config import get_settings
 from app.db import get_engine, get_session
 from app.logs import configure_logging
+from app.manager import DEFAULT_INTERN_NAME
 from app.models import Apprenticeship, Agent, Org, TaskType, User
 from app.task_types import load_all
 
@@ -67,7 +68,7 @@ def me(user: User = Depends(current_user), session: Session = Depends(get_sessio
 @app.get("/task-types")
 def task_types(user: User = Depends(current_user), session: Session = Depends(get_session)) -> list[dict]:
     rows = session.execute(
-        select(TaskType, Apprenticeship.team)
+        select(TaskType, Apprenticeship.team, Apprenticeship.settings)
         .join(Apprenticeship, TaskType.apprenticeship_id == Apprenticeship.id)
         .join(Agent, Apprenticeship.agent_id == Agent.id)
         .where(Agent.org_id == user.org_id)
@@ -75,8 +76,9 @@ def task_types(user: User = Depends(current_user), session: Session = Depends(ge
     ).all()
     return [
         {"id": t.id, "name": t.name, "team": team, "status": t.status, "tau": t.tau,
-         "inputs": t.config.get("inputs", []), "decision": t.config.get("decision", [])}
-        for t, team in rows
+         "inputs": t.config.get("inputs", []), "decision": t.config.get("decision", []),
+         "intern_name": (settings or {}).get("intern_name") or DEFAULT_INTERN_NAME}
+        for t, team, settings in rows
     ]
 
 

@@ -3,22 +3,93 @@
 @theme inline {
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-bricolage);
+  --font-hand: var(--font-caveat);
 }
 
-/* Warm palette around the intern (components/InternAvatar.tsx): orange shell, navy cap. */
+/* One strong colour (newt orange) on warm cream, near-black ink. The stone scale is re-tinted warm so
+   every existing screen picks up the palette without per-page changes. */
 @theme {
+  --color-ink: #1b1714;
+  --color-cream: #f8f4ee;
   --color-brand-50: #fff4ec;
-  --color-brand-100: #ffe4d1;
-  --color-brand-200: #fec7a2;
-  --color-brand-500: #fb9150;
-  --color-brand-600: #e8692a;
-  --color-brand-700: #b94d17;
-  --color-brand-800: #8f3a12;
-  --color-cap-700: #2a2766;
-  --color-cap-900: #1a1846;
+  --color-brand-100: #ffe6d3;
+  --color-brand-200: #ffcba6;
+  --color-brand-300: #ffa66b;
+  --color-brand-500: #ff7a2f;
+  --color-brand-600: #ea5f12;
+  --color-brand-700: #c2410c;
+  --color-brand-800: #9a3412;
+  --color-cap-700: #1b1714;
+  --color-cap-900: #1b1714;
+
+  --color-stone-50: #faf7f2;
+  --color-stone-100: #f3eee6;
+  --color-stone-200: #e8e1d6;
+  --color-stone-300: #d6ccbe;
+  --color-stone-400: #a89d8f;
+  --color-stone-500: #7d7366;
+  --color-stone-600: #5e554a;
+  --color-stone-700: #453e36;
+  --color-stone-800: #2e2924;
+  --color-stone-900: #1b1714;
+
+  --animate-rise: rise 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
 body {
-  background: #fbf7f2;
-  color: #2b211c;
+  background: var(--color-cream);
+  color: var(--color-ink);
+}
+
+h1, h2 {
+  font-family: var(--font-display), var(--font-sans);
+  letter-spacing: -0.02em;
+}
+
+h1 {
+  font-weight: 800;
+}
+
+/* Highlighter mark behind a key word, as if drawn on. */
+.hl {
+  background: linear-gradient(transparent 12%, var(--color-brand-200) 12%, var(--color-brand-200) 88%, transparent 88%);
+  padding: 0 0.15em;
+  border-radius: 0.2em;
+}
+
+.hand {
+  font-family: var(--font-hand), cursive;
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Content arrives in a gentle stagger: put .stagger on a parent. */
+.stagger > * { animation: var(--animate-rise); }
+.stagger > *:nth-child(2) { animation-delay: 60ms; }
+.stagger > *:nth-child(3) { animation-delay: 120ms; }
+.stagger > *:nth-child(4) { animation-delay: 180ms; }
+.stagger > *:nth-child(5) { animation-delay: 240ms; }
+.stagger > *:nth-child(n + 6) { animation-delay: 300ms; }
+
+/* The intern: bob, blink, wave. */
+@keyframes ia-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3%); } }
+@keyframes ia-blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.1); } }
+@keyframes ia-wave { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(-14deg); } }
+.ia-bob { animation: ia-bob 3.2s ease-in-out infinite; }
+.ia-eyes { transform-box: fill-box; transform-origin: center; animation: ia-blink 4.5s infinite; }
+.ia-wave { transform-box: fill-box; transform-origin: 0% 100%; animation: ia-wave 1.4s ease-in-out infinite; }
+@keyframes ia-tail { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(7deg); } }
+.ia-tail { transform-box: fill-box; transform-origin: 100% 100%; animation: ia-tail 2.6s ease-in-out infinite; }
+
+/* Lift on hover for clickable cards. */
+.lift { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+.lift:hover { transform: translateY(-2px); box-shadow: 0 10px 30px -12px rgb(27 23 20 / 0.25); }
+
+@media (prefers-reduced-motion: reduce) {
+  .stagger > *, .ia-bob, .ia-eyes, .ia-wave, .ia-tail { animation: none; }
+  .lift, .lift:hover { transition: none; transform: none; }
 }

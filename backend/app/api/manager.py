@@ -22,6 +22,7 @@ class SettingsIn(BaseModel):
     usd_rate: float | None = Field(default=None, gt=0, le=10000)  # units of the manager's currency per US dollar
     hourly_cost: float | None = Field(default=None, ge=0, le=100000)
     minutes_per_case: float | None = Field(default=None, gt=0, le=600)
+    intern_name: str | None = Field(default=None, min_length=1, max_length=30, pattern=r"^[\w .'-]+$")
 
 
 @router.patch("/settings/{team}")

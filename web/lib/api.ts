@@ -106,6 +106,7 @@ export interface TaskTypeInfo {
   status: string;
   inputs: string[];
   decision: string[];
+  intern_name: string;
 }
 
 export type Provider = "email_upload" | "gmail" | "csv" | "rest";
@@ -478,6 +479,7 @@ export interface ManagerSettings {
   usd_rate: number;
   hourly_cost: number | null;
   minutes_per_case: number | null;
+  intern_name: string;
 }
 
 export interface ManagerTeam {

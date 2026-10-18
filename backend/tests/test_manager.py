@@ -53,3 +53,13 @@ def test_dashboard_counts_work_and_value(team, session, client):
 def test_me_flags_synthetic_orgs(client, session, team):
     me = client.get("/me", headers=team["manager"]).json()
     assert me["synthetic"] is True and me["org"] == "Synthetic Co"
+
+
+def test_each_team_names_its_intern(client, team):
+    tt = client.get("/task-types", headers=team["mentor"]).json()
+    assert tt[0]["intern_name"] == "Newt"  # the default
+    url = "/manager/settings/invoice_mismatch"
+    assert client.patch(url, json={"intern_name": "Rosie"}, headers=team["mentor"]).status_code == 403
+    assert client.patch(url, json={"intern_name": "<b>x</b>"}, headers=team["manager"]).status_code == 422
+    assert client.patch(url, json={"intern_name": "Rosie"}, headers=team["manager"]).json()["intern_name"] == "Rosie"
+    assert client.get("/task-types", headers=team["mentor"]).json()[0]["intern_name"] == "Rosie"

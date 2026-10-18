@@ -26,6 +26,7 @@ function SettingsForm({ team, settings, onSaved }: { team: string; settings: Man
   const [form, setForm] = useState({
     currency: settings.currency, usd_rate: String(settings.usd_rate),
     hourly_cost: settings.hourly_cost?.toString() ?? "", minutes_per_case: settings.minutes_per_case?.toString() ?? "",
+    intern_name: settings.intern_name,
   });
   const [error, setError] = useState<string | null>(null);
   const input = "w-full rounded-md border border-stone-300 bg-white px-2 py-1 text-sm";
@@ -42,6 +43,7 @@ function SettingsForm({ team, settings, onSaved }: { team: string; settings: Man
             currency: form.currency.toUpperCase(), usd_rate: Number(form.usd_rate),
             ...(form.hourly_cost ? { hourly_cost: Number(form.hourly_cost) } : {}),
             ...(form.minutes_per_case ? { minutes_per_case: Number(form.minutes_per_case) } : {}),
+            ...(form.intern_name.trim() ? { intern_name: form.intern_name.trim() } : {}),
           });
           onSaved();
         } catch (err) {
@@ -49,6 +51,9 @@ function SettingsForm({ team, settings, onSaved }: { team: string; settings: Man
         }
       }}
     >
+      <label className="space-y-0.5 text-xs text-stone-500">Your intern&apos;s name
+        <input value={form.intern_name} onChange={set("intern_name")} maxLength={30} className={input} />
+      </label>
       <label className="space-y-0.5 text-xs text-stone-500">Minutes a person spends per case
         <input value={form.minutes_per_case} onChange={set("minutes_per_case")} inputMode="decimal" placeholder="e.g. 6" className={input} />
       </label>

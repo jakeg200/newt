@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { InternAvatar } from "@/components/InternAvatar";
+import { Bubble, PageHeader } from "@/components/ui";
 import { RepredictBanner } from "@/components/RepredictBanner";
 import { TaskTypeTabs } from "@/components/TaskTypeTabs";
 import { TeachingCard } from "@/components/teaching/TeachingCard";
@@ -13,9 +13,9 @@ const pct = (x: number | null | undefined) => (x === null || x === undefined ? "
 
 function Stat({ name, value, note }: { name: string; value: string; note?: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-stone-200 bg-white p-4">
+    <div className="rounded-3xl border border-stone-200 bg-white p-5">
       <p className="text-xs text-stone-500">{name}</p>
-      <p className="text-2xl font-semibold tabular-nums">{value}</p>
+      <p className="font-[family-name:var(--font-display)] text-3xl font-extrabold tabular-nums">{value}</p>
       {note && <p className="mt-0.5 text-xs text-stone-500">{note}</p>}
     </div>
   );
@@ -62,16 +62,13 @@ export default function TodayPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight">Today</h1>
-          <p className="max-w-2xl text-sm text-stone-600">
-            Only the cases worth your time: where the intern differed from you or wasn&apos;t sure, plus the odd spot check.
-            Agreements are counted, not reviewed. One tap per card.
-          </p>
-        </div>
-        <TaskTypeTabs taskTypes={taskTypes} value={taskTypeId} onChange={setTaskTypeId} />
-      </div>
+      <PageHeader
+        title={<>Teach <span className="hl">{taskType.intern_name}</span> today</>}
+        intro={<>Only the cases worth your time: where {taskType.intern_name} differed from you or wasn&apos;t sure, plus the odd spot check.
+          Agreements are counted, not reviewed. One tap per card.</>}
+        mood="learning"
+        aside={<TaskTypeTabs taskTypes={taskTypes} value={taskTypeId} onChange={setTaskTypeId} />}
+      />
 
       {error && (
         <div className="flex justify-between gap-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
@@ -81,7 +78,7 @@ export default function TodayPage() {
       )}
 
       {summary && (
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="stagger grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Stat name="To teach" value={String(summary.queue)} note={queue && Object.entries(queue.by_kind).map(([k, n]) => `${n} ${k.replace("_", " ")}`).join(" · ")} />
           <Stat name="Agrees with you" value={pct(summary.agreement)} note={`${summary.predicted} cases in the latest backtest, after your lessons`} />
           <Stat name="Lessons given" value={String(summary.lessons)} note={summary.rules.active ? `${summary.rules.active} active rules` : "no rules yet"} />
@@ -129,11 +126,10 @@ export default function TodayPage() {
           }}
         />
       ) : (
-        <div className="flex items-center gap-4 rounded-2xl bg-white p-5 text-sm text-stone-600 shadow-sm ring-1 ring-stone-200">
-          <InternAvatar mood="resting" size={88} />
-          <p>
-            All caught up. Nothing in this backtest needs you. See <Link href="/learned" className="text-brand-700 underline">what I&apos;ve learned</Link>.
-          </p>
+        <div className="max-w-xl animate-rise">
+          <Bubble name={taskType.intern_name} mood="resting">
+            All caught up! Nothing in this backtest needs you. Here&apos;s <Link href="/learned" className="font-medium underline">what I&apos;ve learned</Link> so far.
+          </Bubble>
         </div>
       )}
     </div>

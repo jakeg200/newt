@@ -21,7 +21,9 @@ from app.models import (ActionLog, Agent, Apprenticeship, Audit, BacktestRun, Ca
                         User, utcnow)
 
 PERIOD = timedelta(days=30)
-DEFAULT_SETTINGS = {"currency": "USD", "usd_rate": 1.0, "hourly_cost": None, "minutes_per_case": None}
+DEFAULT_INTERN_NAME = "Newt"  # each team can rename its intern
+DEFAULT_SETTINGS = {"currency": "USD", "usd_rate": 1.0, "hourly_cost": None, "minutes_per_case": None,
+                    "intern_name": DEFAULT_INTERN_NAME}
 
 
 def settings_for(app_: Apprenticeship) -> dict[str, Any]:
