@@ -117,6 +117,39 @@ def questions(session: Session, tt: TaskType) -> list[Candidate]:
             payload={"type": "lesson", "prediction_id": card["prediction_id"], "mentor": mentor, "agent": agent,
                      "options": ["intern_wrong", "both_fine", "mentor_changed", "couldnt_know"]}))
 
+    # The unwritten "why" behind a correction: one sentence turns a lesson into judgement Newt can reuse.
+    from app.models import HumanAction, Lesson
+
+    for lesson, case in session.execute(select(Lesson, Case).join(Case, Case.id == Lesson.case_id).where(
+            Case.task_type_id == tt.id, Lesson.attribution == "intern_wrong", Lesson.note.is_(None)).order_by(Lesson.created_at.desc()).limit(3)).all():
+        p = session.get(Prediction, lesson.prediction_id) if lesson.prediction_id else None
+        mine = (p.output or {}).get("decision") if p else None
+        theirs = session.scalar(select(HumanAction.payload).where(HumanAction.case_id == case.id).order_by(HumanAction.acted_at).limit(1)) or {}
+        out.append(Candidate(
+            kind="question", dedupe_key=f"why:{lesson.id}", value=0.65,  # best asked while the correction is fresh
+            body=f"On {_subject(case)} you chose {_label(theirs.get('decision'))} where I'd have chosen {_label(mine)}. "
+                 "What made the difference? A sentence helps me learn the rule nobody wrote down.",
+            payload={"type": "why", "lesson_id": lesson.id}))
+
+    # Patterns in its mistakes that look like an unwritten rule: proposed for the mentor to confirm.
+    from datetime import timedelta
+
+    from app.models import Message, utcnow
+
+    recent = session.scalar(select(Message.id).where(Message.task_type_id == tt.id, Message.dedupe_key.like(f"exception:{tt.id}:%"),
+                                                     Message.created_at > utcnow() - timedelta(hours=1)).limit(1))
+    if recent is None:  # mining is heavier than the other checks, so at most hourly
+        from app.learning.judgement import exceptions
+
+        for ex in exceptions(session, tt)[:1]:
+            out.append(Candidate(
+                kind="question", dedupe_key=f"exception:{tt.id}:{ex['key']}",
+                value=min(0.95, 0.6 + 0.05 * ex["misses"]),  # one answer settles every case like these
+                body=(f"I think there's a rule nobody wrote down: \"{ex['text']}\" I got {ex['misses']} of these wrong, and the team "
+                      f"does this {round((ex['agreement'] or 0) * 100)}% of the time. Shall I follow it?"),
+                payload={"type": "exception", "text": ex["text"], "decision": ex["decision"], "coverage": ex["coverage"],
+                         "examples": ex["examples"], "options": ["yes", "no"]}))
+
     # The role's first-week questions, until they're answered.
     if task.question_bank:
         app_ = session.get(Apprenticeship, tt.apprenticeship_id)

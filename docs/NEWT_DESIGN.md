@@ -307,7 +307,52 @@ routine re-certifies.
 
 **Demo:** `scripts/mock_system.py` (launch config `mock-system`) stands in for the firm's system.
 
-## 17. Open questions
+## 17. From assistant to verified colleague
+
+Copilot owns *assistance for a person*; Hone owns *declarative outcomes* and trusts its engines from day one. The
+scarce thing is neither: it's work moving off people **at a risk the business can sign for**. Newt earns its way from
+decisions to outcomes: it captures an expert's unwritten judgement, proves itself decision by decision, and is
+promoted until it owns an outcome, with one expert supervising a team of Newts.
+
+**A capable Newt** (`app/agents/workbench.py`, `tool_agent.py`, `replay.py`):
+- Tools: search past cases, read an earlier case, look up a record in the firm's system, check the rules, calculate,
+  propose. Which tools a role uses, and which lookups, live in the task-type config (`tools`, `lookups`).
+- Every tool reads through `ContextBuilder`: past cases only before the item arrived; lookups live only in live mode,
+  answered by the destination's signed `query` webhook and redacted before Newt sees them.
+- With a key, `ToolApprentice` runs a step-limited tool loop (8 steps); without one, the offline `WorkbenchPlanner`
+  (search → lookups → rules → propose) produces real trajectories.
+- **Step-checked agreement** (`eval/score.step_checks`): a right answer without the evidence the role requires
+  (`required_steps`, e.g. look up the PO before approving), or with a tool the role doesn't allow, counts as a
+  disagreement. Graduation statistics are unchanged; they consume the stricter agreement.
+- **Replay**: backtests and re-probation answer lookups only from recorded trajectories; anything unrecorded is
+  "unavailable". Model swaps re-certify multi-step work without touching live systems.
+
+**Judgement capture** (`app/learning/judgement.py`, `/judgement`): what only the team knew, as an asset. Written
+(handbook, with sources) and unwritten (rules from behaviour and from the mentor, with coverage, agreement and
+whether they're proven), mentor "why" notes, exceptions mined from repeated disagreements ("you escalate these
+even under the limit: 4 examples, right?"; confirming makes it a rule), and conflicts between rules. Exported as
+Markdown or PDF. Curiosity asks one "why?" after a disagreement, within the etiquette budget.
+
+**Decisions to outcomes** (`app/outcomes/insights.py`): a sixth rank, **Outcome owner**, above senior: certified
+coverage of 40%+ and two weeks on track, then a manager signs. An owner finds what drives exceptions (config-driven
+`insight_dimensions`, e.g. supplier) and proposes initiatives with a draft for a person to send; progress is reported
+as the driver's exception rate before and since, nothing more.
+
+**Supervisor console** (`/team`, `app/outcomes/capacity.py`): every Newt with its evidence line, a capacity plan at
+the firm's risk limit with what-ifs at 1/2/5/10% (from `eval/stats.py`), what still needs people, and the role
+redesign card: "you supervise 2 Newts carrying 64% of the work; you focus on these exceptions".
+
+**Role packs** (`roles/*.json`, `RolePack`): a role is its task-type config plus a title, tagline and default
+routines. First day starts with the role library; a manager hires a Newt for a role (`POST /role-packs/{id}/hire`,
+or `app.admin.hire`). Industries come as packs, never code.
+
+**Interface:** Home · Needs you · Team · Judgement · Report card · Setup. Home carries the evidence line ("certified
+on 298 cases · wrong at most 2.1% · would carry 81%"); the Report card shows a real case worked step by step.
+
+**Next iteration:** licences and insurance on the certified record; choosing a first industry; cross-firm priors
+(opt-in).
+
+## 18. Open questions
 
 - Which roles first?
 - Voice provider and call UX.

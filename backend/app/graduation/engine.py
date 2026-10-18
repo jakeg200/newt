@@ -95,6 +95,15 @@ def score(builder: ContextBuilder, items: list[Sample], calibrator: Calibrator |
     return [cal(r) for r in raws], cal
 
 
+def scores_and_errors(session: Session, task_type: TaskType) -> tuple[list[float], list[bool]]:
+    """The calibrated confidence and error flag of every evidence case: what `choose_tau` works on. Used for what-ifs
+    on the risk limit (capacity planning); the gate itself still runs through `evaluate`."""
+    builder = ContextBuilder(session, task_type)
+    items = samples(session, task_type)
+    scores, _ = score(builder, items)
+    return scores, [s.error for s in items]
+
+
 def evaluate(session: Session, task_type: TaskType) -> dict[str, Any]:
     task = TaskTypeConfig.model_validate(task_type.config)
     builder = ContextBuilder(session, task_type)

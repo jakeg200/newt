@@ -30,6 +30,7 @@ class PredictionResult:
     cost_usd: float = 0.0
     latency_ms: int = 0
     samples: list[str] = field(default_factory=list)  # decisions from self-consistency samples
+    trajectory: list[dict[str, Any]] | None = None  # tool steps, when the agent worked the case with tools
 
 
 def _field_schema(spec) -> dict[str, Any]:

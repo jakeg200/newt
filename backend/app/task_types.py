@@ -73,6 +73,29 @@ class KpiSpec(BaseModel):
     label: str | None = Field(default=None, max_length=80)
 
 
+TOOLS = ("search_past_cases", "get_case", "lookup_record", "check_rule", "calculate")
+
+
+class LookupSpec(BaseModel):
+    """An input that names a record in the firm's system (e.g. a purchase-order number), and what kind of record."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    input: str
+    kind: str = Field(pattern=r"^[a-z0-9_]{1,40}$")
+
+
+class InsightDimension(BaseModel):
+    """Something to group the work by when looking for what drives exceptions (e.g. the supplier), read from an
+    input, the subject or the sender, optionally with a pattern whose first group is the value."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(pattern=r"^[a-z0-9_]{1,40}$")
+    source: str
+    pattern: str | None = Field(default=None, max_length=200)
+
+
 class TaskTypeConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -90,6 +113,36 @@ class TaskTypeConfig(BaseModel):
     question_bank: list[BankQuestion] = Field(default_factory=list)
     follow_up_days: dict[str, int] = Field(default_factory=dict)  # decision -> days to wait before chasing
     kpis: list[KpiSpec] = Field(default_factory=list)
+    # Doing the job, not just answering: the tools Newt may use, records it can look up, and the evidence a
+    # decision needs before it counts (e.g. "look up the purchase order before approving").
+    tools: list[Literal["search_past_cases", "get_case", "lookup_record", "check_rule", "calculate"]] = Field(default_factory=list)
+    lookups: list[LookupSpec] = Field(default_factory=list)
+    required_steps: dict[str, list[str]] = Field(default_factory=dict)
+    insight_dimensions: list[InsightDimension] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _tools_are_consistent(self) -> "TaskTypeConfig":
+        for spec in self.lookups:
+            if spec.input not in self.inputs:
+                raise ValueError(f"lookup input {spec.input!r} is not one of {self.inputs}")
+        if self.lookups and "lookup_record" not in self.tools:
+            raise ValueError("lookups need the lookup_record tool")
+        for decision, steps in self.required_steps.items():
+            if decision not in self.decision:
+                raise ValueError(f"required_steps decision {decision!r} is not one of {self.decision}")
+            if set(steps) - set(self.tools):
+                raise ValueError(f"required_steps for {decision!r} use tools the role doesn't have")
+        for dim in self.insight_dimensions:
+            if dim.source not in self.inputs and dim.source not in ("sender", "subject"):
+                raise ValueError(f"insight dimension source {dim.source!r} must be an input, 'sender' or 'subject'")
+            if dim.pattern:
+                import re
+
+                try:
+                    re.compile(dim.pattern)
+                except re.error as exc:
+                    raise ValueError(f"insight dimension pattern is invalid: {exc}") from exc
+        return self
 
     @model_validator(mode="after")
     def _follow_ups_match_decisions(self) -> "TaskTypeConfig":
@@ -138,6 +191,45 @@ class TaskTypeConfigError(ValueError):
     def __init__(self, path: Path, message: str) -> None:
         super().__init__(f"{path.name}: {message}")
         self.path = path
+
+
+class RoutineDefault(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    steps: list[str]
+    follow_up_days: int | None = Field(default=None, ge=1, le=60)
+
+
+class RolePack(BaseModel):
+    """A role Newt can be hired for: the task-type config plus what a firm needs to get going (description, default
+    routines). Industry specifics live here, never in code. Cross-firm priors will hang off packs later (opt-in)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str = Field(pattern=r"^[a-z0-9_]{1,60}$")
+    title: str = Field(min_length=1, max_length=80)
+    tagline: str = Field(max_length=200)
+    description: str = Field(max_length=1000)
+    team: str = Field(pattern=r"^[a-z0-9_]{1,60}$")  # default team name
+    task_type: str  # file in the task-types directory
+    routines: dict[str, RoutineDefault] = Field(default_factory=dict)
+
+
+def load_role_packs(roles_dir: Path, task_types_dir: Path) -> dict[str, tuple[RolePack, "TaskTypeConfig"]]:
+    """Every pack, validated together with its task type (routines may only use the role's decisions and actions)."""
+    out: dict[str, tuple[RolePack, TaskTypeConfig]] = {}
+    if not roles_dir.exists():
+        return out
+    for path in sorted(roles_dir.glob("*.json")):
+        pack = RolePack.model_validate(json.loads(path.read_text(encoding="utf-8")))
+        config = load_task_type(task_types_dir / pack.task_type)
+        for decision, r in pack.routines.items():
+            if decision not in config.decision:
+                raise ValueError(f"{path.name}: routine for unknown decision {decision!r}")
+            if set(r.steps) - set(config.allowed_actions):
+                raise ValueError(f"{path.name}: routine for {decision!r} uses actions the role isn't allowed")
+        out[pack.id] = (pack, config)
+    return out
 
 
 def load_task_type(path: Path) -> TaskTypeConfig:

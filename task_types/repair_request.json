@@ -30,6 +30,10 @@
     "reply_text_output": "tenant_reply"
   },
   "follow_up_days": {"ask_for_details": 2},
+  "tools": ["search_past_cases", "get_case", "lookup_record", "check_rule"],
+  "lookups": [{"input": "property_record", "kind": "property"}],
+  "required_steps": {"book_contractor": ["lookup_record"]},
+  "insight_dimensions": [{"name": "trade", "source": "request_text"}],
   "kpis": [
     {"metric": "completed_by_newt", "label": "Requests finished by Newt"},
     {"metric": "median_hours_to_complete", "target": 8, "direction": "down", "label": "Hours to sort a request"},

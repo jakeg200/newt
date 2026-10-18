@@ -76,3 +76,9 @@ offline drafter (`app/orientation/offline.py`); tests always use `FakeProvider`,
 - Captured content is redacted (`app/capture/redact.py`) before it is stored; ids and addresses
   are stored only as keyed hashes (`app/capture/keys.py`). Never add a column that holds raw
   message content or addresses.
+- Agent tools live in `app/agents/workbench.py` and read only through `ContextBuilder`; lookups are live only in live
+  mode and redacted, and backtests and replays answer them only from recordings (`app/agents/replay.py`).
+  Agreement needs the role's `required_steps` (`eval/score.step_checks`); `tests/test_tool_agent.py` holds the leakage test.
+- Exceptions and initiatives are proposals: a rule only exists once the mentor confirms it, and an initiative's
+  message is a draft a person sends. Initiative impact is reported as before/since only.
+- Roles are packs in `roles/*.json` wrapping task-type configs; industry specifics stay there.

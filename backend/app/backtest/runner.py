@@ -20,7 +20,8 @@ from app.agents.output import PredictionResult
 from app.agents.registry import describe_runner, runner_for
 from app.config import get_settings
 from app.eval.judge import get_judge, judge_outputs
-from app.eval.score import compare, inherited_attribution, prior_teaching
+from app.agents.replay import recordings_for
+from app.eval.score import compare, inherited_attribution, prior_teaching, step_checks
 from app.logs import get_logger
 from app.models import Agent, BacktestRun, Case, Comparison, Job, Prediction, TaskType, User, utcnow
 from app.task_types import TaskTypeConfig
@@ -166,6 +167,8 @@ def execute(session: Session, run_id: str) -> BacktestRun:
         session.commit()
         previous = _previous_decisions(session, [c.id for c in cases], run.created_at)
 
+        # Tools in a backtest or replay answer lookups only from earlier live recordings, never the live system.
+        builder.enable_tools(live=False, recordings=recordings_for(session, [c.id for c in cases]))
         contexts: dict[str, CaseContext] = {}
         for case in cases:
             ctx = builder.build(case)
@@ -234,6 +237,7 @@ def _record(session: Session, run: BacktestRun, agent: Agent, task: TaskTypeConf
         output={**(result.output or {}), "samples": result.samples} if result.output else {},
         confidence=result.confidence, error=result.error, input_tokens=result.input_tokens,
         output_tokens=result.output_tokens, cost_usd=result.cost_usd, latency_ms=result.latency_ms,
+        trajectory=result.trajectory,
     )
     session.add(prediction)
     session.flush()
@@ -250,9 +254,12 @@ def _record(session: Session, run: BacktestRun, agent: Agent, task: TaskTypeConf
         if c["text_judgement"] and not c["decision_match"]:
             c["text_judgement"] = {"status": "skipped", "reason": "different decision"}
         inherited = inherited_attribution(task, result.output, teaching)
+        steps = step_checks(task, result.trajectory, result.output.get("decision"))
+        if not steps["ok"]:
+            c["agreement"] = False  # the right answer without the required evidence is luck, not competence
         comp = Comparison(case_id=case.id, prediction_id=prediction.id, decision_match=c["decision_match"],
                           field_scores=c["field_scores"], text_judgement=c["text_judgement"], agreement=c["agreement"],
-                          attribution=inherited, excluded=inherited == "mentor_changed")
+                          attribution=inherited, excluded=inherited == "mentor_changed", steps=steps)
         session.add(comp)
         row.update(comparison=c, comp=comp)
     return row

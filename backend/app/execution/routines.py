@@ -37,8 +37,13 @@ def proposed(session: Session, tt: TaskType) -> dict[str, dict[str, Any]]:
     task = TaskTypeConfig.model_validate(tt.config)
     shares = _reply_shares(session, tt)
     reply = next((a for a in REPLY_ACTIONS if a in task.allowed_actions), None)
+    defaults = ((session.get(Apprenticeship, tt.apprenticeship_id).settings or {}).get("routine_defaults") or {}).get(tt.id, {})
     out = {}
     for d in task.decision:
+        if d in defaults and not shares:  # a role pack's starting point, until the team's own history says otherwise
+            out[d] = {"steps": list(defaults[d]["steps"]), "follow_up_days": defaults[d].get("follow_up_days"), "status": "proposed",
+                      "from_pack": True}
+            continue
         steps = [a for a in ("set_status", "set_field") if a in task.allowed_actions]
         if reply and shares.get(d, 0.0) >= REPLY_SHARE:
             steps.append(reply)

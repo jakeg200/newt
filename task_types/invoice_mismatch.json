@@ -27,6 +27,10 @@
     "reply_text_output": "supplier_email"
   },
   "follow_up_days": {"query_supplier": 3},
+  "tools": ["search_past_cases", "get_case", "lookup_record", "check_rule", "calculate"],
+  "lookups": [{"input": "po_record", "kind": "purchase_order"}],
+  "required_steps": {"approve": ["lookup_record"]},
+  "insight_dimensions": [{"name": "supplier", "source": "subject", "pattern": "^(.+?) invoice"}],
   "kpis": [
     {"metric": "completed_by_newt", "label": "Invoices finished by Newt"},
     {"metric": "share_by_newt", "target": 0.5, "label": "Share of invoices Newt finished"},

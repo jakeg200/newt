@@ -11,8 +11,10 @@ import { useUser } from "@/lib/user";
 const NAV = [
   { href: "/", label: "Home", match: ["/"] },
   { href: "/inbox", label: "Needs you", match: ["/inbox", "/today", "/autonomy"] },
+  { href: "/team", label: "Team", match: ["/team"] },
+  { href: "/judgement", label: "Judgement", match: ["/judgement", "/learned"] },
   { href: "/report", label: "Report card", match: ["/report", "/board"] },
-  { href: "/setup", label: "Setup", match: ["/setup", "/first-day", "/orientation", "/capture", "/backtest", "/learned", "/manager"] },
+  { href: "/setup", label: "Setup", match: ["/setup", "/first-day", "/orientation", "/capture", "/backtest", "/manager"] },
 ];
 
 export function Header() {

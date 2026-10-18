@@ -50,6 +50,35 @@ def set_http(client: httpx.Client | None) -> None:
     _http_override = client
 
 
+def lookup_via(session, tt):
+    """A lookup function for live work: asks the first destination that answers queries ("query" in its actions).
+    Resolved on the calling thread, so the workbench itself never touches the database."""
+    from app.execution import destinations
+
+    dest = destinations.for_action(session, tt, "query")
+    if dest is None:
+        return None
+    url, secret = dest.url, destinations.secret_of(dest)
+
+    def ask(kind: str, ref: str) -> dict[str, Any] | None:
+        body = json.dumps({"type": "query", "action": "query", "kind": kind, "ref": ref}, sort_keys=True).encode()
+        try:
+            resp = (_http_override or httpx.Client(timeout=10.0)).post(url, content=body, headers={
+                "Content-Type": "application/json", SIGNATURE_HEADER: sign(secret, body)})
+        except httpx.HTTPError:
+            return None
+        if resp.status_code != 200:
+            return None
+        try:
+            data = resp.json()
+        except json.JSONDecodeError:
+            return None
+        record = data.get("record") if isinstance(data, dict) else None
+        return record if isinstance(record, dict) else None
+
+    return ask
+
+
 class WebhookExecutor:
     def __init__(self, url: str, secret: str, timeout_s: float = 10.0) -> None:
         self.url, self.secret = url, secret

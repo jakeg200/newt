@@ -6,6 +6,7 @@ import { STAGE_MOOD } from "@/components/InternAvatar";
 import { Proposal } from "@/components/board/Proposal";
 import { TaskTypeTabs } from "@/components/TaskTypeTabs";
 import { CareerLadder, OutcomeCard } from "@/components/outcomes/OutcomeCard";
+import { ShowsItsWork } from "@/components/outcomes/ShowsItsWork";
 import { PageHeader } from "@/components/ui";
 import { api, type AgentInfo, type BoardRow, type Career, type ManagerTeam, type Outcomes } from "@/lib/api";
 import { useTaskTypes } from "@/lib/useTaskTypes";
@@ -74,6 +75,8 @@ export default function ReportCardPage() {
           {intern} has earned a review for the next step. See the evidence below.
         </p>
       )}
+
+      <ShowsItsWork taskTypeId={taskType.id} intern={intern} />
 
       <h2 className="pt-2 text-2xl font-extrabold">Why you can trust these numbers</h2>
       <div className="stagger grid gap-3 sm:grid-cols-3">

@@ -40,9 +40,9 @@ def create(session: Session, user: User, tt: TaskType, name: str, url: str, acti
         url = check_endpoint(url, allow_http_localhost=get_settings().env == "dev")
     except EndpointError as exc:
         raise DestinationError(str(exc)) from exc
-    unknown = sorted(set(actions) - set(task.allowed_actions))
+    unknown = sorted(set(actions) - set(task.allowed_actions) - {"query"})  # "query": it answers Newt's lookups
     if unknown or not actions:
-        raise DestinationError(f"actions must be some of this role's allowed actions: {task.allowed_actions}")
+        raise DestinationError(f"actions must be some of this role's allowed actions ({task.allowed_actions}) or query")
     secret = "newt_" + secrets.token_urlsafe(32)
     d = Destination(org_id=user.org_id, task_type_id=tt.id, name=name.strip() or "My system", url=url, actions=actions,
                     encrypted_secret=crypto.encrypt(secret))

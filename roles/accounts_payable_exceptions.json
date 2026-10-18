@@ -1,0 +1,13 @@
+{
+  "id": "accounts_payable_exceptions",
+  "title": "Accounts payable: invoice exceptions",
+  "tagline": "Invoices that don't match the purchase order: approve, query the supplier, or escalate.",
+  "description": "Newt checks each mismatched invoice against the purchase order, applies your tolerance and approval limits, drafts the supplier query when quantities or prices are off, and escalates anything over the limit or unusual. It learns your thresholds and the suppliers you treat differently.",
+  "team": "accounts_payable",
+  "task_type": "invoice_mismatch.json",
+  "routines": {
+    "approve": {"steps": ["set_status"]},
+    "query_supplier": {"steps": ["set_status", "draft_reply"], "follow_up_days": 3},
+    "escalate": {"steps": ["set_status"]}
+  }
+}

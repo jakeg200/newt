@@ -74,6 +74,32 @@ def add_team(session: Session, org_name: str, team: str, mentor_email: str, conf
     return tt
 
 
+def hire(session: Session, org_name: str, pack_id: str, mentor_email: str | None = None, team: str | None = None) -> TaskType:
+    """Hire a Newt for a role pack: the team and task type, plus the pack's routines as Newt's starting suggestions."""
+    from app.config import get_settings
+    from app.task_types import load_role_packs
+
+    settings = get_settings()
+    packs = load_role_packs(settings.roles_dir, settings.task_types_dir)
+    if pack_id not in packs:
+        raise AdminError(f"no role pack {pack_id!r}")
+    pack, config = packs[pack_id]
+    org = _org(session, org_name)
+    if mentor_email is None:
+        mentor = session.scalar(select(User).where(User.org_id == org.id, User.role == "mentor").order_by(User.email))
+        if mentor is None:
+            raise AdminError(f"{org_name} has no mentor yet; add one first")
+        mentor_email = mentor.email
+    tt = add_team(session, org_name, team or pack.team, mentor_email, config)
+    app_ = session.get(Apprenticeship, tt.apprenticeship_id)
+    settings_ = dict(app_.settings or {})
+    defaults = {k: dict(v) for k, v in (settings_.get("routine_defaults") or {}).items()}
+    defaults[tt.id] = {d: r.model_dump() for d, r in pack.routines.items()}
+    app_.settings = {**settings_, "routine_defaults": defaults, "role_pack": pack.id}
+    session.commit()
+    return tt
+
+
 def main(argv: list[str] | None = None) -> None:
     from app.db import get_session
 

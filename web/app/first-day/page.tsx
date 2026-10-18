@@ -7,16 +7,61 @@ import { TaskTypeTabs } from "@/components/TaskTypeTabs";
 import { Bubble } from "@/components/ui";
 import { Destinations } from "@/components/work/Destinations";
 import { Routines } from "@/components/work/Routines";
-import { api, ApiError, type Kpi, type Question } from "@/lib/api";
+import { api, ApiError, type Kpi, type Question, type RolePackInfo, type TaskTypeInfo } from "@/lib/api";
 import { useTaskTypes } from "@/lib/useTaskTypes";
 
-const STEPS = ["Meet", "Success", "Sign-off", "Know-how", "Routines", "Systems", "Start"] as const;
+const STEPS = ["Role", "Meet", "Success", "Sign-off", "Know-how", "Routines", "Systems", "Start"] as const;
 const LADDER = [
   ["Intern", "watches your work and writes down what it would do, sealed until you've decided"],
   ["Junior", "drafts the work; nothing happens until you approve each one"],
   ["Graduate", "handles routine cases alone, hands back anything unusual, and is spot-checked"],
   ["Senior", "earns extra responsibilities, like chasing replies itself"],
+  ["Outcome owner", "owns a goal: finds what drives it, proposes fixes for you to agree, reports every week"],
 ];
+
+/** The role library: roles a Newt can be hired for. Industry-specific roles come as packs, never code. */
+function RoleLibrary({ taskTypes, manager, onHired }: { taskTypes: TaskTypeInfo[]; manager: boolean; onHired: () => void }) {
+  const [packs, setPacks] = useState<RolePackInfo[]>([]);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    api.rolePacks().then(setPacks).catch(() => {});
+  }, []);
+  return (
+    <div className="space-y-3">
+      <div className="grid gap-3 sm:grid-cols-2">
+        {packs.map((p) => {
+          const hired = taskTypes.some((t) => t.name === p.task_type);
+          return (
+            <div key={p.id} className={`space-y-2 rounded-2xl p-4 ring-1 ${hired ? "bg-emerald-50/60 ring-emerald-200" : "bg-white ring-stone-200"}`}>
+              <p className="font-semibold">{p.title}</p>
+              <p className="text-sm text-stone-600">{p.tagline}</p>
+              <p className="text-xs text-stone-500">Measured on: {p.kpis.slice(0, 3).join(", ")}</p>
+              {hired ? <span className="inline-flex rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">On your team</span>
+                : manager ? (
+                  <button type="button" disabled={busy === p.id} className="rounded-full bg-ink px-3.5 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+                          onClick={async () => {
+                            setBusy(p.id);
+                            setError(null);
+                            try {
+                              await api.hire(p.id);
+                              onHired();
+                            } catch (e) {
+                              setError(e instanceof ApiError ? e.message : String(e));
+                              setBusy(null);
+                            }
+                          }}>
+                    {busy === p.id ? "Hiring…" : "Hire a Newt for this"}
+                  </button>
+                ) : <span className="text-xs text-stone-400">A manager can hire this role</span>}
+            </div>
+          );
+        })}
+      </div>
+      {error && <p className="text-sm text-red-700">{error}</p>}
+    </div>
+  );
+}
 
 export default function FirstDay() {
   const { user, taskTypes, taskTypeId, setTaskTypeId, taskType, error } = useTaskTypes();
@@ -51,16 +96,16 @@ export default function FirstDay() {
 
   async function next() {
     try {
-      if (step === 0 && manager && name.trim() && name.trim() !== taskType!.intern_name) {
+      if (step === 1 && manager && name.trim() && name.trim() !== taskType!.intern_name) {
         await api.managerSettings(taskType!.team, { intern_name: name.trim() });
       }
-      if (step === 1 && manager) {
+      if (step === 2 && manager) {
         await api.setKpiTargets(taskType!.id, Object.fromEntries(kpis.map((k) => {
           const v = targets[k.metric];
           return [k.metric, v === "" || v === undefined ? null : k.metric === "share_by_newt" ? Number(v) / 100 : Number(v)];
         })));
       }
-      if (step === 3 && mentor) {
+      if (step === 4 && mentor) {
         const filled = Object.fromEntries(Object.entries(answers).filter(([, v]) => v.trim()));
         if (Object.keys(filled).length) await api.saveAnswers(taskType!.team, filled);
       }
@@ -71,6 +116,7 @@ export default function FirstDay() {
   }
 
   const say: { mood: Mood; text: React.ReactNode }[] = [
+    { mood: "hello", text: <>Which role am I joining? Pick one from the library, or carry on with <b>{taskType.name.toLowerCase()}</b>.</> },
     { mood: "hello", text: <>Hi! I&apos;m joining the team to help with <b>{taskType.name.toLowerCase()}</b>. I start as an intern and earn every step from there. What should everyone call me?</> },
     { mood: "thinking", text: <>How will we know I&apos;m doing a good job? These are what I&apos;ll report on every week, and what my reviews will show.</> },
     { mood: "learning", text: <>Here&apos;s how I earn trust. Each step needs evidence and a signature from a person. Some things always come back to you, whatever my rank.</> },
@@ -112,7 +158,7 @@ export default function FirstDay() {
           <Bubble name={intern} mood={say[step].mood} growth={step === STEPS.length - 1 ? "larva" : "egg"}>{say[step].text}</Bubble>
 
           <div className="rounded-3xl border border-stone-200 bg-white p-5">
-            {step === 0 && (
+            {step === 1 && (
               <div className="space-y-3">
                 <label className="block space-y-1.5">
                   <span className="text-sm font-medium">Name</span>
@@ -122,7 +168,7 @@ export default function FirstDay() {
                 <p className="text-sm text-stone-500">Role: <b>{taskType.name}</b> · Team: {taskType.team.replace(/_/g, " ")}{!manager && " · the manager picks the name"}</p>
               </div>
             )}
-            {step === 1 && (
+            {step === 2 && (
               <div className="grid gap-3 sm:grid-cols-2">
                 {kpis.map((k) => (
                   <label key={k.metric} className="space-y-1.5 rounded-2xl bg-stone-50 p-3.5">
@@ -138,7 +184,7 @@ export default function FirstDay() {
                 {!manager && <p className="text-sm text-stone-500 sm:col-span-2">The manager sets the goals.</p>}
               </div>
             )}
-            {step === 2 && (
+            {step === 3 && (
               <div className="space-y-4">
                 <ol className="space-y-2">
                   {LADDER.map(([t, d], i) => (
@@ -158,7 +204,7 @@ export default function FirstDay() {
                 )}
               </div>
             )}
-            {step === 3 && (
+            {step === 4 && (
               <div className="space-y-3">
                 {questions.map((q) => (
                   <label key={q.key} className="block space-y-1.5">
@@ -170,9 +216,10 @@ export default function FirstDay() {
                 {!mentor && <p className="text-sm text-stone-500">The mentor answers these.</p>}
               </div>
             )}
-            {step === 4 && <Routines taskType={taskType} allowed={taskType.allowed_actions} canEdit={mentor} intern={intern} />}
-            {step === 5 && <Destinations taskType={taskType} allowed={taskType.allowed_actions} intern={intern} />}
-            {step === 6 && (
+            {step === 0 && <RoleLibrary taskTypes={taskTypes} manager={manager} onHired={() => window.location.reload()} />}
+            {step === 5 && <Routines taskType={taskType} allowed={taskType.allowed_actions} canEdit={mentor} intern={intern} />}
+            {step === 6 && <Destinations taskType={taskType} allowed={taskType.allowed_actions} intern={intern} />}
+            {step === 7 && (
               <div className="space-y-3">
                 <div className="flex flex-wrap gap-2">
                   <Link href="/orientation" className="rounded-full bg-white px-4 py-2 text-sm font-semibold ring-1 ring-stone-300 hover:bg-stone-100">Give it the team&apos;s documents</Link>

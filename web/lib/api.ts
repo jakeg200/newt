@@ -667,6 +667,21 @@ export const api = {
   setKpiTargets: (taskTypeId: string, body: Record<string, number | null>) =>
     request<Record<string, number | null>>(`/task-types/${taskTypeId}/kpi-targets`, { method: "PUT", body: JSON.stringify(body) }),
   career: (taskTypeId: string) => request<Career>(`/task-types/${taskTypeId}/career`),
+  judgement: (taskTypeId: string) => request<Judgement>(`/task-types/${taskTypeId}/judgement`),
+  judgementFile: async (taskTypeId: string, kind: "md" | "pdf") => {
+    const headers = new Headers();
+    authHeaders(headers);
+    const r = await fetch(`${API_URL}/task-types/${taskTypeId}/judgement.${kind}`, { headers });
+    if (!r.ok) throw new ApiError(r.status, "couldn't export");
+    return r.blob();
+  },
+  team: () => request<TeamView>("/team"),
+  capacity: (taskTypeId: string) => request<Capacity & { human_work: { reason: string; cases: number }[] }>(`/task-types/${taskTypeId}/capacity`),
+  insights: (taskTypeId: string) => request<Insights>(`/task-types/${taskTypeId}/insights`),
+  sampleWork: (taskTypeId: string) => request<SampleWork | null>(`/task-types/${taskTypeId}/sample-work`),
+  rolePacks: () => request<RolePackInfo[]>("/role-packs"),
+  hire: (packId: string, team?: string) =>
+    request<{ task_type_id: string; name: string }>(`/role-packs/${packId}/hire`, { method: "POST", body: JSON.stringify({ team }) }),
   say: (taskTypeId: string, text: string) =>
     request<ChatMessage[]>("/messages", { method: "POST", body: JSON.stringify({ task_type_id: taskTypeId, text }) }),
   replyTo: (messageId: string, action: ReplyAction, value?: string, note?: string) =>
@@ -675,9 +690,85 @@ export const api = {
   setPreferences: (body: Partial<ContactPrefs>) => request<ContactPrefs>("/me/preferences", { method: "PATCH", body: JSON.stringify(body) }),
 };
 
-export type ReplyAction = "decide" | "approve" | "reject" | "lesson" | "answer" | "sign" | "feedback" | "dismiss" | "retry" | "chase";
+export type ReplyAction = "decide" | "approve" | "reject" | "lesson" | "answer" | "sign" | "feedback" | "dismiss" | "retry" | "chase" | "confirm";
 
-export type Rank = "new_starter" | "intern" | "junior" | "graduate" | "senior";
+export type Rank = "new_starter" | "intern" | "junior" | "graduate" | "senior" | "owner";
+
+export interface Judgement {
+  written: { kind: string; text: string; sources: string[]; steps?: string[] | null }[];
+  unwritten: { id: string; text: string; decision: string | null; status: string; learned: string; taught_by: string | null; since: string;
+               version: number; coverage: number; share: number; agreement: number | null; passes: boolean; examples: string[] }[];
+  notes: { note: string; case: string; at: string }[];
+  exceptions: { text: string; decision: string; phrase: string; misses: number; coverage: number; agreement: number | null; examples: string[]; key: string }[];
+  conflicts: { rules: string[]; cases: number; examples: string[] }[];
+  decisions: number;
+  explicit_share: number;
+  handbook_version: number | null;
+}
+
+export interface Capacity {
+  volume_per_week: number;
+  alpha: number;
+  current: { alpha: number; share: number; cases_per_week: number; hours_per_week: number | null; error_bound: number; certified: boolean };
+  what_if: { alpha: number; share: number; cases_per_week: number; hours_per_week: number | null; error_bound: number; certified: boolean }[];
+  human_cases_per_week: number;
+  evidence_cases: number;
+  minutes_per_case: number | null;
+}
+
+export interface TeamNewt {
+  id: string;
+  name: string;
+  team: string;
+  intern_name: string;
+  rank: Rank;
+  title: string;
+  status: string;
+  evidence: { n_above: number; errors_above: number; ucb: number; alpha: number; coverage: number; eligible: boolean };
+  needs_people: { drafts: number; handbacks: number; audits: number };
+  kpis: Kpi[];
+  capacity: Capacity;
+  human_work: { reason: string; cases: number }[];
+}
+
+export interface TeamView {
+  newts: TeamNewt[];
+  role: { newts: number; volume_per_week: number; carried_per_week: number; share: number; hours_per_week: number };
+}
+
+export interface Insights {
+  usual: string | null;
+  base_rate: number | null;
+  cases: number;
+  rank: Rank;
+  drivers: { key: string; dimension: string; value: string; cases: number; exceptions: number; rate: number; lift: number;
+             top_exception: string; hours_per_week: number | null }[];
+  initiatives: { id: string; title: string; why: string; status: string; baseline_rate: number; at: string; draft: string;
+                 since: { cases: number; rate: number | null; change: number | null } | null }[];
+}
+
+export interface SampleWork {
+  subject: string;
+  steps: { n: number; tool: string; input: Record<string, unknown>; output: Record<string, unknown> }[];
+  decision: string | null;
+  agreement: boolean | null;
+  decision_match: boolean;
+  checks: { checked?: boolean; ok?: boolean; missing?: string[]; disallowed?: string[] };
+  live: boolean;
+}
+
+export interface RolePackInfo {
+  id: string;
+  title: string;
+  tagline: string;
+  description: string;
+  team: string;
+  task_type: string;
+  decisions: string[];
+  kpis: string[];
+  tools: string[];
+  always_hand_back: string[];
+}
 
 export interface DestinationInfo {
   id: string;
@@ -727,7 +818,7 @@ export interface Career {
 export interface ChatMessage {
   id: string;
   direction: "newt" | "person";
-  kind: "standup" | "question" | "delivery" | "handback" | "draft" | "promotion" | "ack" | "chat" | "weekly" | "followup";
+  kind: "standup" | "question" | "delivery" | "handback" | "draft" | "promotion" | "ack" | "chat" | "weekly" | "followup" | "initiative";
   body: string;
   payload: Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any -- shape depends on kind
   status: "open" | "answered" | "done" | "dismissed";

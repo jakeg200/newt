@@ -13,6 +13,7 @@ RUN pip install .
 COPY backend/alembic.ini ./
 COPY backend/migrations ./migrations
 COPY task_types /srv/task_types
+COPY roles /srv/roles
 
 RUN useradd --create-home --uid 10001 app
 USER app

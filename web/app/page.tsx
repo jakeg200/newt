@@ -9,7 +9,7 @@ import { stageLabel } from "@/components/ui";
 import { api, ApiError, type ChatMessage } from "@/lib/api";
 import { useTaskTypes } from "@/lib/useTaskTypes";
 
-const RANK_TITLE: Record<string, string> = { new_starter: "New starter", intern: "Intern", junior: "Junior", graduate: "Graduate", senior: "Senior" };
+const RANK_TITLE: Record<string, string> = { new_starter: "New starter", intern: "Intern", junior: "Junior", graduate: "Graduate", senior: "Senior", owner: "Outcome owner" };
 
 const dayLabel = (iso: string) => {
   const d = new Date(iso);
@@ -41,6 +41,15 @@ export default function Conversation() {
     setRank(t.rank);
     setStatusLine(t.status_line);
   }, []);
+
+  const [evidence, setEvidence] = useState<{ n_above: number; ucb: number; coverage: number; eligible: boolean } | null>(null);
+  useEffect(() => {
+    if (!taskTypeId) return;
+    api.board().then((rows) => {
+      const r = rows.find((x) => x.id === taskTypeId);
+      setEvidence(r ? { n_above: r.evaluation.n_above, ucb: r.evaluation.ucb, coverage: r.evaluation.coverage, eligible: r.evaluation.eligible } : null);
+    }).catch(() => {});
+  }, [taskTypeId]);
 
   useEffect(() => {
     if (!taskTypeId) return;
@@ -111,6 +120,13 @@ export default function Conversation() {
               {rank && <span className="rounded-full bg-brand-100 px-2.5 py-0.5 font-sans text-xs font-semibold tracking-normal text-brand-800">{RANK_TITLE[rank] ?? stageLabel(taskType.status)}</span>}
             </h1>
             <p className="text-sm text-stone-500">{taskType.name}</p>
+            {evidence && evidence.n_above > 0 && (
+              <Link href="/report" className="mt-0.5 inline-flex flex-wrap gap-x-1.5 text-xs text-stone-600 hover:text-ink">
+                <span>Certified on <b>{evidence.n_above}</b> cases</span>·
+                <span>wrong at most <b>{(evidence.ucb * 100).toFixed(1)}%</b></span>·
+                <span>{evidence.eligible ? "carries" : "would carry"} <b>{Math.round(evidence.coverage * 100)}%</b> of the work</span>
+              </Link>
+            )}
             {statusLine && (
               <p className="mt-0.5 flex items-center gap-1.5 text-sm font-medium text-ink" aria-live="polite">
                 <span className={`h-2 w-2 rounded-full ${waiting ? "bg-brand-500" : "bg-emerald-500"} animate-pulse`} />

@@ -50,6 +50,11 @@ async def hook(request: Request) -> JSONResponse:
                                  "item": action.get("item_ref"), "params": action.get("params"), "test": action.get("test", False)})
     if STATE["secret"] and not signed:
         return JSONResponse({"status": "failed", "detail": "signature didn't match"}, status_code=401)
+    if action.get("type") == "query":  # Newt looking something up, e.g. a purchase order
+        seed = sum(map(ord, str(action.get("ref"))))
+        return JSONResponse({"record": {"kind": action.get("kind"), "ref": action.get("ref"), "status": ["open", "part-received", "closed"][seed % 3],
+                                        "amount": round(100 + (seed * 37) % 4900 + (seed % 100) / 100, 2), "lines": 1 + seed % 9,
+                                        "received_qty": seed % 50, "approver": "AP team"}})
     if action.get("test"):
         return JSONResponse({"status": "done", "ref": "TEST"})
     if STATE["mode"] == "accepted" and action.get("callback_url"):

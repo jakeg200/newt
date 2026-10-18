@@ -261,6 +261,8 @@ class Prediction(Base):
     latency_ms: Mapped[int] = mapped_column(Integer, default=0)
     sealed_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    # How it got there: each tool step with its (redacted) input and output, so the work can be checked and replayed.
+    trajectory: Mapped[list | None] = mapped_column(Json)
 
 
 class HumanAction(Base):
@@ -286,6 +288,7 @@ class Comparison(Base):
     agreement: Mapped[bool] = mapped_column(Boolean)  # as scored, before any lesson
     attribution: Mapped[str | None] = mapped_column(String(20))  # set by the mentor's lesson
     excluded: Mapped[bool] = mapped_column(Boolean, default=False)  # "I'd change my call": not the agent's error
+    steps: Mapped[dict] = mapped_column(Json, default=dict)  # trajectory checks: required evidence, allowed tools
 
     @property
     def effective_agreement(self) -> bool | None:

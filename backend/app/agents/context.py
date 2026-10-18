@@ -48,6 +48,7 @@ class CaseContext:
     handbook_version: int | None
     rules_version: int | None
     pieces: list[Piece] = field(default_factory=list)
+    workbench: Any = None  # tools for working the case (app/agents/workbench.py); not part of the payload
 
     def of(self, kind: str) -> list[Piece]:
         return [p for p in self.pieces if p.kind == kind]
@@ -161,6 +162,15 @@ class ContextBuilder:
         self.lessons: dict[str, Lesson] = {}
         for lesson in session.scalars(select(Lesson).join(Case).where(*captured).order_by(Lesson.created_at)):
             self.lessons[lesson.case_id] = lesson  # the latest lesson per case
+        self.tools_mode: str | None = None  # "live" or "replay" once enabled
+        self.lookup = None
+        self.recordings: dict[str, dict[str, Any]] = {}
+
+    def enable_tools(self, *, live: bool, lookup=None, recordings: dict[str, dict[str, Any]] | None = None) -> None:
+        """Give contexts a workbench (for roles that have tools). Live work may ask the firm's system; backtests and
+        replays answer lookups only from recordings of earlier live work."""
+        if self.task.tools:
+            self.tools_mode, self.lookup, self.recordings = ("live" if live else "replay"), lookup, recordings or {}
 
     def build(self, case: Case) -> CaseContext:
         as_of = utc(case.received_at)
@@ -200,6 +210,14 @@ class ContextBuilder:
                 content["mentor_note"] = lesson.note
                 observed = max(observed, utc(lesson.created_at))
             ctx.pieces.append(Piece("similar_case", cid, observed, content))
+        if self.tools_mode:
+            from app.agents.workbench import PastCase, Workbench
+
+            past = [PastCase(cid, self.decided[cid].case.source_ref, (self.decided[cid].case.snapshot or {}).get("subject", ""),
+                             (self.decided[cid].case.snapshot or {}).get("inputs", {}), self.decided[cid].decision,
+                             self.decided[cid].fields) for cid in candidates]
+            ctx.workbench = Workbench(self.task, case.id, _text(case), past, self.index, [p.content for p in ctx.of("rule")],
+                                      live=self.tools_mode == "live", lookup=self.lookup, recorded=self.recordings.get(case.id, {}))
         return ctx
 
     def forbidden(self, case: Case) -> list[str]:

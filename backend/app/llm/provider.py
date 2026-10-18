@@ -53,6 +53,20 @@ class LLMResult:
         }
 
 
+@dataclass
+class ToolTurn:
+    """One model turn in a tool loop: what it said, which tools it called, and the raw content to send back."""
+
+    tool_calls: list[dict[str, Any]]  # {"id", "name", "input"}
+    text: str
+    stop_reason: str
+    content: list[dict[str, Any]]  # the assistant message, as it must be sent back on the next turn
+    model: str
+    input_tokens: int = 0
+    output_tokens: int = 0
+    cost_usd: float = 0.0
+
+
 class Provider(Protocol):
     name: str
     model: str
@@ -61,6 +75,11 @@ class Provider(Protocol):
         self, *, task: str, system: str, user: str, schema: dict[str, Any], effort: str = "medium",
         cache_system: bool = False, max_tokens: int | None = None,
     ) -> LLMResult: ...
+
+    def complete_with_tools(
+        self, *, task: str, system: str, messages: list[dict[str, Any]], tools: list[dict[str, Any]],
+        effort: str = "medium", max_tokens: int = 4000,
+    ) -> ToolTurn: ...
 
 
 def cost_usd(model: str, input_tokens: int, output_tokens: int, cache_write: int = 0, cache_read: int = 0) -> float:
@@ -145,7 +164,33 @@ class AnthropicProvider:
         )
 
 
+    def complete_with_tools(
+        self, *, task: str, system: str, messages: list[dict[str, Any]], tools: list[dict[str, Any]],
+        effort: str = "medium", max_tokens: int = 4000,
+    ) -> ToolTurn:
+        anthropic = self._anthropic
+        try:
+            message = self._client.beta.messages.create(
+                model=self.model, max_tokens=max_tokens, system=system, messages=messages, tools=tools,
+                thinking={"type": "adaptive"}, output_config={"effort": effort},
+                betas=["server-side-fallback-2026-07-01"], fallbacks="default",
+            )
+        except anthropic.APIStatusError as exc:
+            raise ProviderError(f"Anthropic API error {exc.status_code}: {exc.message}") from exc
+        except anthropic.APIConnectionError as exc:
+            raise ProviderError("could not reach the Anthropic API") from exc
+        if message.stop_reason == "refusal":
+            raise ProviderError(f"the model declined this {task}")
+        content = [b.model_dump(exclude_none=True) for b in message.content]
+        calls = [{"id": b.id, "name": b.name, "input": b.input} for b in message.content if b.type == "tool_use"]
+        text = " ".join(b.text for b in message.content if b.type == "text")
+        u = message.usage
+        return ToolTurn(calls, text, message.stop_reason or "", content, message.model, u.input_tokens, u.output_tokens,
+                        cost_usd(message.model, u.input_tokens, u.output_tokens))
+
+
 Responder = Callable[[str, str, str, dict[str, Any]], dict[str, Any]]
+ToolResponder = Callable[[list[dict[str, Any]]], list[dict[str, Any]]]  # messages so far -> tool calls (empty = done)
 
 
 class FakeProvider:
@@ -155,9 +200,21 @@ class FakeProvider:
     name = "fake"
     model = "fake-provider"
 
-    def __init__(self, responders: dict[str, Responder] | None = None) -> None:
+    def __init__(self, responders: dict[str, Responder] | None = None, tool_responders: dict[str, ToolResponder] | None = None) -> None:
         self.responders = responders or {}
+        self.tool_responders = tool_responders or {}
         self.calls: list[dict[str, Any]] = []
+
+    def complete_with_tools(
+        self, *, task: str, system: str, messages: list[dict[str, Any]], tools: list[dict[str, Any]],
+        effort: str = "medium", max_tokens: int = 4000,
+    ) -> ToolTurn:
+        if task not in self.tool_responders:
+            raise ProviderError(f"no fake tool responder for {task!r}")
+        self.calls.append({"task": task, "turn": len(messages)})
+        calls = [{"id": f"t{len(messages)}_{i}", **c} for i, c in enumerate(self.tool_responders[task](messages))]
+        content = [{"type": "tool_use", "id": c["id"], "name": c["name"], "input": c["input"]} for c in calls]
+        return ToolTurn(calls, "", "tool_use" if calls else "end_turn", content, self.model)
 
     def complete_json(
         self, *, task: str, system: str, user: str, schema: dict[str, Any], effort: str = "medium",

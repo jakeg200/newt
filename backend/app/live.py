@@ -19,7 +19,7 @@ from app.agents.output import validate_output
 from app.agents.registry import runner_for
 from app.eval.calibration import Calibrator, DecisionModel, Example, raw_score
 from app.eval.judge import get_judge, judge_outputs
-from app.eval.score import compare, inherited_attribution, prior_teaching
+from app.eval.score import compare, inherited_attribution, prior_teaching, step_checks
 from app.graduation import handback
 from app.logs import get_logger
 from app.models import (ActionLog, Agent, Apprenticeship, Audit, Case, Comparison, HumanAction, Job, Prediction, TaskType,
@@ -53,6 +53,9 @@ def predict_cases(session: Session, case_ids: list[str]) -> int:
         task = TaskTypeConfig.model_validate(tt.config)
         agent = session.get(Agent, session.get(Apprenticeship, tt.apprenticeship_id).agent_id)
         builder = ContextBuilder(session, tt)
+        from app.execution.executor import lookup_via
+
+        builder.enable_tools(live=True, lookup=lookup_via(session, tt))  # live work may ask the firm's system
         runner = runner_for(agent)
         calibrator = Calibrator.load(tt.calibration)
         batch = sorted((c for c in cases if c.task_type_id == tt_id), key=lambda c: utc(c.received_at))
@@ -81,7 +84,8 @@ def predict_cases(session: Session, case_ids: list[str]) -> int:
                                                                             "raw": raw, "calibrated": conf},
                                    "hand_back": hb, "mode": tt.status} if result.output else {"hand_back": hb, "mode": tt.status},
                            confidence=conf, error=result.error, input_tokens=result.input_tokens,
-                           output_tokens=result.output_tokens, cost_usd=result.cost_usd, latency_ms=result.latency_ms)
+                           output_tokens=result.output_tokens, cost_usd=result.cost_usd, latency_ms=result.latency_ms,
+                           trajectory=result.trajectory)
             session.add(p)
             session.flush()
             if result.output and not hb["hand_back"] and tt.status in ("supervised", "autonomous"):
@@ -152,9 +156,12 @@ def score_cases(session: Session, case_ids: list[str]) -> int:
             else:
                 c["text_judgement"] = {"status": "skipped", "reason": "different decision"}
         inherited = inherited_attribution(task, p.output, prior_teaching(session, [case.id]).get(case.id))
+        steps = step_checks(task, p.trajectory, p.output.get("decision"))
+        if not steps["ok"]:
+            c["agreement"] = False  # right answer, missing the evidence the role requires
         session.add(Comparison(case_id=case.id, prediction_id=p.id, decision_match=c["decision_match"], field_scores=c["field_scores"],
                                text_judgement=c["text_judgement"], agreement=c["agreement"],
-                               attribution=inherited, excluded=inherited == "mentor_changed"))
+                               attribution=inherited, excluded=inherited == "mentor_changed", steps=steps))
         scored += 1
     session.commit()
     return scored

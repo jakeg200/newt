@@ -43,10 +43,15 @@ def runner_for(agent: Agent, samples: int | None = None) -> Runner:
     if settings.anthropic_api_key:
         from app.llm.provider import AnthropicProvider
 
+        from app.agents.tool_agent import ToolApprentice
+
         model = (agent.config or {}).get("model") or settings.apprentice_model  # set by a model swap
         provider = AnthropicProvider(model=model, api_key=settings.anthropic_api_key)
-        return BuiltinApprentice(provider, samples=samples or settings.apprentice_samples, effort=settings.apprentice_effort)
-    return NearestCasesAgent()
+        plain = BuiltinApprentice(provider, samples=samples or settings.apprentice_samples, effort=settings.apprentice_effort)
+        return ToolApprentice(provider, fallback=plain, effort=settings.apprentice_effort)  # tools when the role has them
+    from app.agents.tool_agent import WorkbenchPlanner
+
+    return WorkbenchPlanner(fallback=NearestCasesAgent())
 
 
 def describe_runner(agent: Agent, samples: int | None = None) -> dict[str, Any]:

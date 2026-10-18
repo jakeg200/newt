@@ -82,7 +82,9 @@ def outcomes(session: Session, tt: TaskType, now: datetime | None = None, weeks:
                      "series": [w.get(s.metric) for w in series] if s.metric != "backlog_open" else None})
     events = [{"at": utc(e.signed_at).isoformat(), "from": e.from_status, "to": e.to_status}
               for e in session.scalars(select(GraduationEvent).where(GraduationEvent.task_type_id == tt.id).order_by(GraduationEvent.signed_at))]
-    events += [{"at": v["at"], "from": "autonomous", "to": "senior"} for v in (settings.get("career") or {}).get(tt.id, [])]
+    events += [{"at": v["at"], "from": "autonomous", "to": v.get("to", "senior")} for v in (settings.get("career") or {}).get(tt.id, [])]
+    events += [{"at": i["at"], "from": "", "to": "initiative", "title": i.get("title")}
+               for i in (settings.get("initiatives") or {}).get(tt.id, []) if i.get("status") == "running"]
     from app.execution.destinations import connected
 
     return {"weeks": series, "kpis": kpis, "backlog_open": backlog, "promotions": sorted(events, key=lambda e: e["at"]),

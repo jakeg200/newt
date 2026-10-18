@@ -8,8 +8,9 @@ const fmt = (metric: string, v: number | null | undefined) =>
   v === null || v === undefined ? "–" : metric === "share_by_newt" ? `${Math.round(v * 100)}%`
     : metric === "median_hours_to_complete" ? `${v}h` : metric === "value" ? Math.round(v).toLocaleString() : String(v);
 
-const RANK_GROWTH: Record<string, Growth> = { new_starter: "egg", intern: "larva", junior: "eft", graduate: "adult", senior: "adult" };
-const TO_RANK: Record<string, string> = { supervised: "Junior", autonomous: "Graduate", senior: "Senior", shadow: "Intern", demoted: "Back to practice" };
+const RANK_GROWTH: Record<string, Growth> = { new_starter: "egg", intern: "larva", junior: "eft", graduate: "adult", senior: "adult", owner: "adult" };
+const TO_RANK: Record<string, string> = { supervised: "Junior", autonomous: "Graduate", senior: "Senior", owner: "Owner", shadow: "Intern",
+                                          demoted: "Back to practice", initiative: "Initiative" };
 
 /** The headline KPI over the weeks, with the goal line and each promotion marked, like a performance chart. */
 function Chart({ kpi, weeks, promotions }: { kpi: Kpi; weeks: Outcomes["weeks"]; promotions: Outcomes["promotions"] }) {
@@ -107,17 +108,17 @@ export function OutcomeCard({ o, intern }: { o: Outcomes; intern: string }) {
 export function CareerLadder({ career, promotions }: { career: Career; promotions: Outcomes["promotions"] }) {
   const at = career.ladder.findIndex((r) => r.rank === career.rank);
   const when = (rank: string) => {
-    const to = { junior: "supervised", graduate: "autonomous", senior: "senior" }[rank];
+    const to = { junior: "supervised", graduate: "autonomous", senior: "senior", owner: "owner" }[rank];
     const p = [...promotions].reverse().find((e) => e.to === to);
     return p ? new Date(p.at).toLocaleDateString([], { day: "numeric", month: "short" }) : null;
   };
   return (
     <section className="rounded-3xl border border-stone-200 bg-white p-5 sm:p-6">
       <p className="mb-4 text-sm font-medium text-stone-500">Career</p>
-      <ol className="grid grid-cols-5 gap-1">
+      <ol className="grid grid-cols-6 gap-1">
         {career.ladder.map((r, i) => (
           <li key={r.rank} className="flex flex-col items-center gap-1.5 text-center" aria-current={i === at ? "step" : undefined}>
-            <InternAvatar growth={RANK_GROWTH[r.rank]} size={i === at ? 60 : 44} decorative animated={i === at}
+            <InternAvatar growth={RANK_GROWTH[r.rank]} size={i === at ? 52 : 38} decorative animated={i === at}
                           className={i > at ? "opacity-25 grayscale" : ""} />
             <span className={`h-1.5 w-full rounded-full ${i <= at ? "bg-brand-500" : "bg-stone-200"}`} />
             <span className={`text-xs ${i === at ? "font-semibold" : "text-stone-500"}`}>{r.title}</span>

@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     env: str = "dev"
     database_url: str = f"sqlite:///{(BACKEND_DIR / 'dev.db').as_posix()}"
     task_types_dir: Path = REPO_DIR / "task_types"
+    roles_dir: Path = REPO_DIR / "roles"
     supabase_url: str | None = None
     supabase_jwt_secret: str | None = None
     anthropic_api_key: str | None = None

@@ -1,0 +1,13 @@
+{
+  "id": "property_repairs",
+  "title": "Property management: repair requests",
+  "tagline": "Tenant repair requests: book a contractor, ask for details, or escalate.",
+  "description": "Newt reads each repair request, checks the property and tenancy, picks the urgency and trade, books your preferred contractor or asks the tenant for what's missing, and escalates emergencies straight away. It learns which contractors you trust and when landlords must approve.",
+  "team": "property_management",
+  "task_type": "repair_request.json",
+  "routines": {
+    "book_contractor": {"steps": ["set_status", "draft_reply"]},
+    "ask_for_details": {"steps": ["draft_reply"], "follow_up_days": 2},
+    "escalate": {"steps": ["set_status", "route"]}
+  }
+}

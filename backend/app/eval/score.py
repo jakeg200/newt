@@ -38,6 +38,21 @@ def field_matches(spec: FieldSpec, mentor: Any, agent: Any) -> bool:
     return _text(mentor) == _text(agent)
 
 
+def step_checks(task: TaskTypeConfig, trajectory: list[dict[str, Any]] | None, decision: str | None) -> dict[str, Any]:
+    """Checks on how an answer was reached. A right answer without the evidence the role requires (e.g. approving
+    without looking up the purchase order) doesn't count as agreement: that's luck, not competence.
+
+    Only applies when the agent worked the case with tools; plain answers are scored as before."""
+    if trajectory is None:
+        return {"checked": False, "ok": True}
+    used = [s.get("tool") for s in trajectory]
+    allowed = set(task.tools) | {"propose"}
+    disallowed = sorted({t for t in used if t not in allowed})
+    missing = [t for t in task.required_steps.get(decision or "", []) if t not in used]
+    return {"checked": True, "ok": not disallowed and not missing, "missing": missing, "disallowed": disallowed,
+            "steps": len(trajectory)}
+
+
 def same_answer(task: TaskTypeConfig, a: dict[str, Any], b: dict[str, Any]) -> bool:
     """Same decision and the same critical field values: the same alternative, for teaching purposes."""
     if a.get("decision") != b.get("decision"):

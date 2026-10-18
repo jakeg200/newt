@@ -45,7 +45,7 @@ def say(body: SayIn, user: User = Depends(current_user), session: Session = Depe
 
 
 class ReplyIn(BaseModel):
-    action: Literal["decide", "approve", "reject", "lesson", "answer", "sign", "feedback", "dismiss", "retry", "chase"]
+    action: Literal["decide", "approve", "reject", "lesson", "answer", "sign", "feedback", "dismiss", "retry", "chase", "confirm"]
     value: str | None = Field(default=None, max_length=2000)
     note: str | None = Field(default=None, max_length=2000)
 

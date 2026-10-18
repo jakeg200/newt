@@ -17,7 +17,7 @@ const LESSON: Record<string, string> = {
 
 const MOOD: Record<ChatMessage["kind"], Mood> = {
   standup: "hello", question: "thinking", delivery: "working", handback: "handing-back", draft: "drafting",
-  promotion: "graduated", ack: "neutral", chat: "neutral", weekly: "working", followup: "thinking",
+  promotion: "graduated", ack: "neutral", chat: "neutral", weekly: "working", followup: "thinking", initiative: "working",
 };
 
 const fmt = (metric: string, v: number | null | undefined) =>
@@ -64,7 +64,7 @@ function Answered({ m }: { m: ChatMessage }) {
   if (m.status === "done" && !a) return <p className="mt-2 text-xs text-stone-400">Dealt with elsewhere ✓</p>;
   if (!a) return null;
   const text = a.action === "approve" ? "Approved" : a.action === "sign" ? "Signed" : a.action === "dismiss" ? "Not now"
-    : a.action === "retry" ? "Try again" : a.action === "chase" ? "Chase it"
+    : a.action === "retry" ? "Try again" : a.action === "chase" ? "Chase it" : a.action === "confirm" ? (a.value === "yes" ? "Yes" : "No")
     : a.action === "lesson" ? LESSON[a.value ?? ""] ?? label(a.value) : a.action === "answer" ? "Answered" : label(a.value);
   return <p className="mt-2 inline-flex rounded-full bg-stone-100 px-2.5 py-0.5 text-xs text-stone-600">You: {text} ✓</p>;
 }
@@ -118,7 +118,16 @@ function Body({ m, act, open }: { m: ChatMessage; act: Act; open: boolean }) {
         <>
           <p>{m.body}</p>
           {p.type === "case" && <CaseBox c={p.case} />}
-          {open && p.type === "bank" && (
+          {p.type === "exception" && (p.examples as string[] | undefined)?.length ? (
+            <p className="mt-1.5 text-xs text-stone-500">For example: {(p.examples as string[]).slice(0, 2).join(" · ")}</p>
+          ) : null}
+          {open && p.type === "exception" && (
+            <div className="mt-2.5 flex flex-wrap gap-1.5">
+              <Chip primary disabled={busy} onClick={() => run("confirm", "yes")}>Yes, that&apos;s our rule</Chip>
+              <Chip disabled={busy} onClick={() => run("confirm", "no")}>Not really</Chip>
+            </div>
+          )}
+          {open && (p.type === "bank" || p.type === "why") && (
             <form className="mt-2.5 flex gap-2" onSubmit={(e) => { e.preventDefault(); if (text.trim()) run("answer", text); }}>
               <input value={text} onChange={(e) => setText(e.target.value)} placeholder="A sentence or two is plenty"
                      className="min-w-0 flex-1 rounded-full border border-stone-300 bg-white px-3.5 py-1.5 text-sm outline-none focus:border-ink" />
@@ -149,6 +158,24 @@ function Body({ m, act, open }: { m: ChatMessage; act: Act; open: boolean }) {
             <div className="mt-2.5 flex flex-wrap gap-1.5">
               {p.retry && <Chip primary disabled={busy} onClick={() => run("retry")}>Try again</Chip>}
               {(p.options as string[]).map((o) => <Chip key={o} disabled={busy} onClick={() => run("decide", o)}>{p.retry ? `I'll ${label(o)}` : label(o)}</Chip>)}
+            </div>
+          )}
+        </>
+      );
+    case "initiative":
+      return (
+        <>
+          <p className="hand text-lg leading-none text-brand-700">An idea to fix a cause</p>
+          <p className="mt-1 font-semibold">{p.title}</p>
+          <p className="mt-0.5">{m.body}</p>
+          <div className="mt-2 rounded-2xl bg-stone-50 px-3.5 py-2.5 text-sm text-stone-700">
+            <p className="text-xs font-medium uppercase tracking-wide text-stone-400">Draft for you to send</p>
+            <p className="mt-1">{p.draft}</p>
+          </div>
+          {open && (
+            <div className="mt-2.5 flex flex-wrap gap-1.5">
+              <Chip primary disabled={busy} onClick={() => run("confirm", "yes")}>Take it on</Chip>
+              <Chip disabled={busy} onClick={() => run("confirm", "no")}>Not now</Chip>
             </div>
           )}
         </>
@@ -199,11 +226,11 @@ function Body({ m, act, open }: { m: ChatMessage; act: Act; open: boolean }) {
       return (
         <>
           <p className="hand text-lg leading-none text-brand-700">
-            {p.to === "senior" ? "Ready for more responsibility?" : p.to === "autonomous" ? "Ready to graduate?" : "Ready to become a junior?"}
+            {p.to === "owner" ? "Ready to own an outcome?" : p.to === "senior" ? "Ready for more responsibility?" : p.to === "autonomous" ? "Ready to graduate?" : "Ready to become a junior?"}
           </p>
           <p className="mt-1">{m.body}</p>
           <p className="mt-1.5 text-xs font-medium uppercase tracking-wide text-stone-400">
-            Performance review · {p.to === "senior" ? "graduate → senior" : p.to === "autonomous" ? "junior → graduate" : "intern → junior"}
+            Performance review · {p.to === "owner" ? "senior → outcome owner" : p.to === "senior" ? "graduate → senior" : p.to === "autonomous" ? "junior → graduate" : "intern → junior"}
           </p>
           <div className="mt-2.5 grid grid-cols-3 gap-2 text-center">
             {[["mistakes", `${p.errors_above}/${p.n_above}`], ["wrong at most", pct(p.ucb)], ["of the work", pct(p.coverage)]].map(([k, v]) => (

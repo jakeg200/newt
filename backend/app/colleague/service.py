@@ -139,6 +139,12 @@ def _weekly(session: Session, tt: TaskType, now: datetime) -> tuple[str, dict[st
 def _promotion(session: Session, user: User, tt: TaskType) -> tuple[str, str, dict[str, Any]] | None:
     """A request to move up, sent to whoever may sign it, only when the evidence is there: a performance review."""
     if user.role in ("manager", "admin"):
+        owner = career.owner_ready(session, tt)
+        if owner:
+            return ("owner", (f"I'm carrying {round(owner['coverage'] * 100)}% of this role with certified evidence, and every goal has been "
+                              f"on track for {career.OWNER_WEEKS_ON_TRACK} weeks. May I own '{owner['label']}' as an outcome? I'll find what "
+                              "drives it, propose fixes for you to agree, and report the result every week."),
+                    {**engine.evaluate(session, tt), "responsibility": "owner"})
         ready = career.senior_ready(session, tt)
         if ready:
             return ("senior", (f"I've passed {ready['audits_passed']} spot checks in a row since graduating. May I take on chasing "
@@ -208,6 +214,14 @@ def refresh(session: Session, user: User, tt: TaskType, now: datetime | None = N
                                                         "n_above": ev.get("n_above"), "errors_above": ev.get("errors_above"),
                                                         "coverage": ev.get("coverage"), "kpis": kpis, "responsibility": ev.get("responsibility")},
                  key=key, at=etiquette.deliver_at(now, prefs, kind="work"))
+
+    if user.role in ("manager", "admin") and career.rank(session, tt) == "owner" and etiquette.working(now, prefs):
+        from app.outcomes import insights
+
+        idea = insights.propose(session, tt, intern_name(session, tt))
+        if idea and not _exists(session, user, f"initiative:{tt.id}:{idea['key']}"):
+            _say(session, user, tt, "initiative", f"{idea['why']} Shall I take this on?",
+                 {**idea, "type": "initiative", "options": ["yes", "no"]}, key=f"initiative:{tt.id}:{idea['key']}", at=now)
 
     local = now.astimezone(etiquette.ZoneInfo(prefs.timezone))
     last_workday = max(prefs.workdays) if prefs.workdays else 4
@@ -338,16 +352,48 @@ def reply(session: Session, user: User, message_id: str, action: str, value: str
         r = teaching.record_lesson(session, user, p["prediction_id"], value or "", note=note)
         said.append(_say(session, user, tt, "ack", r["effect"], at=now, status="done"))
     elif action == "answer":
-        from app.orientation.service import save_answers
-
         if not (value or "").strip():
             raise ConversationError("type an answer first")
-        save_answers(session, user, p["team"], {p["key"]: Redactor()(value)})
-        said.append(_say(session, user, tt, "ack", "Thanks, I've written that into my notes for the handbook.", at=now, status="done"))
+        if p.get("type") == "why":
+            from app.models import Lesson
+
+            lesson = session.get(Lesson, p["lesson_id"])
+            if lesson is not None:
+                lesson.note = Redactor()(value)[:2000]
+            said.append(_say(session, user, tt, "ack", "Got it. That's in my judgement notes now, and I'll look for it in similar cases.",
+                             at=now, status="done"))
+        else:
+            from app.orientation.service import save_answers
+
+            save_answers(session, user, p["team"], {p["key"]: Redactor()(value)})
+            said.append(_say(session, user, tt, "ack", "Thanks, I've written that into my notes for the handbook.", at=now, status="done"))
+    elif action == "confirm" and p.get("type") == "initiative":
+        from app.outcomes import insights
+
+        insights.accept(session, user, tt, {k: v for k, v in p.items() if k not in ("answer", "type")}, value == "yes")
+        said.append(_say(session, user, tt, "ack", (f"Great. Here's a draft for whoever owns that relationship to send: \"{p['draft']}\" "
+                                                     "I'll track the rate every week and tell you what changed.") if value == "yes"
+                         else "Understood, I'll leave that one.", at=now, status="done"))
+    elif action == "confirm":
+        if user.role not in MENTOR_ROLES:
+            raise PermissionError("only the mentor can confirm how the team decides")
+        if value == "yes":
+            from app.backtest.runner import create_repredict
+            from app.learning import rules as rules_mod
+
+            rule = rules_mod.write(session, tt, user, p["text"])
+            session.flush()
+            agent = session.get(Agent, session.get(Apprenticeship, tt.apprenticeship_id).agent_id)
+            create_repredict(session, user, tt, agent, reason=f"confirmed exception: {rule.text[:80]}")
+            engine.on_procedure_change(session, tt, user, f"confirmed exception: {rule.text[:80]}")
+            said.append(_say(session, user, tt, "ack", "Thank you. It's a rule now, with its evidence, and I'm re-checking my recent answers.",
+                             {"rule_id": rule.id}, at=now, status="done"))
+        else:
+            said.append(_say(session, user, tt, "ack", "Understood, I won't treat that as a rule.", at=now, status="done"))
     elif action == "sign":
         try:
-            if p["to"] == "senior":
-                career.grant(session, user, tt, p.get("responsibility") or "follow_ups")
+            if p["to"] in ("senior", "owner"):
+                career.grant(session, user, tt, p.get("responsibility") or ("owner" if p["to"] == "owner" else "follow_ups"))
             else:
                 engine.sign(session, tt, user, p["to"])
         except (PermissionError, engine.GraduationError, career.CareerError) as exc:
