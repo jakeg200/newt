@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { InternAvatar, type Growth, type Mood } from "@/components/InternAvatar";
-import type { ChatMessage, ReplyAction } from "@/lib/api";
+import { BlastView } from "@/components/improve/ChangeTest";
+import type { Blast, ChatMessage, ReplyAction } from "@/lib/api";
 
 const label = (s: unknown) => String(s ?? "").replace(/_/g, " ");
 const pct = (x: unknown) => (typeof x === "number" ? `${Math.round(x * 1000) / 10}%` : "–");
@@ -17,8 +18,10 @@ const LESSON: Record<string, string> = {
 
 const MOOD: Record<ChatMessage["kind"], Mood> = {
   standup: "hello", question: "thinking", delivery: "working", handback: "handing-back", draft: "drafting",
-  promotion: "graduated", ack: "neutral", chat: "neutral", weekly: "working", followup: "thinking", initiative: "working",
+  promotion: "graduated", ack: "neutral", chat: "neutral", weekly: "working", followup: "thinking", initiative: "working", improvement: "learning",
 };
+
+const CHANNEL: Record<string, string> = { slack: "Slack", teams: "Teams", email: "email" };
 
 const fmt = (metric: string, v: number | null | undefined) =>
   v === null || v === undefined ? "–" : metric === "share_by_newt" ? `${Math.round(v * 100)}%`
@@ -180,6 +183,20 @@ function Body({ m, act, open }: { m: ChatMessage; act: Act; open: boolean }) {
           )}
         </>
       );
+    case "improvement":
+      return (
+        <>
+          <p className="hand text-lg leading-none text-brand-700">A change to how I work</p>
+          <p className="mt-1">{m.body}</p>
+          {p.blast?.cases !== undefined && <div className="mt-2.5"><BlastView b={p.blast as Blast} compact /></div>}
+          {open && (
+            <div className="mt-2.5 flex flex-wrap gap-1.5">
+              <Chip primary disabled={busy} onClick={() => run("confirm", "yes")}>Use it</Chip>
+              <Chip disabled={busy} onClick={() => run("confirm", "no")}>Drop it</Chip>
+            </div>
+          )}
+        </>
+      );
     case "followup":
       return (
         <>
@@ -311,7 +328,7 @@ export function MessageCard({ m, act, intern, growth }: { m: ChatMessage; act: A
           <Body m={m} act={act} open={open} />
           {!open && !["standup", "ack", "delivery", "weekly"].includes(m.kind) && <Answered m={m} />}
         </div>
-        <p className="mt-1 pl-2 text-[11px] text-stone-400">{intern} · {time(m.at)}{m.urgency === "urgent" && " · urgent"}</p>
+        <p className="mt-1 pl-2 text-[11px] text-stone-400">{intern} · {time(m.at)}{m.urgency === "urgent" && " · urgent"}{m.channel && CHANNEL[m.channel] && ` · sent to ${CHANNEL[m.channel]}`}</p>
       </div>
     </div>
   );

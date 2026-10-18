@@ -15,6 +15,7 @@ from app.agents.context import utc
 from app.eval.process import TeamTimeline
 from app.execution import routines
 from app.models import Case, HumanAction, TaskType
+from app.task_types import TaskTypeConfig
 
 HORIZON_PAD = timedelta(days=2)
 MAX_HORIZON = timedelta(days=60)
@@ -54,7 +55,10 @@ def build(session: Session, tt: TaskType, case: Case) -> Scenario | None:
     if decision is None:
         return None
     received = utc(case.received_at)
-    replies = [utc(a.acted_at) for a in actions if a.action_type == "reply"]
+    reply_output = TaskTypeConfig.model_validate(tt.config).capture.reply_text_output
+    # A reply is a reply action, or a decision that carried the reply's text (ledgers and queues report it that way).
+    replies = [utc(a.acted_at) for a in actions if a.action_type == "reply"
+               or (reply_output and ((a.payload or {}).get("text_outputs") or {}).get(reply_output))]
     world = _thread_replies(session, case)
     days = routines.follow_up_days(session, tt, decision)
     last = max([received, *(utc(a.acted_at) for a in actions), *world])

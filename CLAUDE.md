@@ -22,6 +22,9 @@ docs/DECISIONS.md; anything only Jake can provide goes in docs/NEEDS_JAKE.md.
 - Regenerate the capture samples (test mailbox, ledger CSVs): `python scripts/make_sample_capture.py`
 - Job worker (production; in dev the API runs jobs itself): `python -m app.worker`
 - Mock company system that receives Newt's actions (demo): `python -m uvicorn scripts.mock_system:app --port 8200`
+- Mock Slack for demos (API with `SLACK_API_URL=http://127.0.0.1:8300/api`, `SLACK_SIGNING_SECRET=demo-signing`):
+  `python -m uvicorn scripts.mock_chat:app --port 8300`
+- Past supplier threads for process replays on "Demo Co": `python -m demo threads 24`
 - Mock vendor agent for demos: `MOCK_AGENT_SECRET=… python -m uvicorn scripts.mock_agent:app --port 8100`
 - Tests on real Postgres (embedded via pgserver): `TEST_DATABASE=postgres python -m pytest`
 - Whole programme for "Demo Co" against the running API: `python -m demo` (`--stop-before …`, `live N [--decide]`)
@@ -82,3 +85,11 @@ offline drafter (`app/orientation/offline.py`); tests always use `FakeProvider`,
 - Exceptions and initiatives are proposals: a rule only exists once the mentor confirms it, and an initiative's
   message is a draft a person sends. Initiative impact is reported as before/since only.
 - Roles are packs in `roles/*.json` wrapping task-type configs; industry specifics stay there.
+- Time comes only from `models.utcnow` (`app/clock.py`); never call `datetime.now` in app code. Process replays run the
+  real pipeline in `app/sim/sandbox.py` (always rolled back) and the director answers only from the recording;
+  `tests/test_process_replay.py` holds the leakage test (no thread reply seen before its time).
+- No change to rules or routines reaches live work untested: go through `learning/improve.propose`, never activate
+  a rule or change a live routine directly. Rules being tested have status "testing", which agents never see.
+- Channels only deliver what the colleague service wrote, when etiquette allows, with the app's own actions
+  (`app/channels/cards.py`). Every inbound request is authenticated before it's read, the sender must be the
+  message's person, and typed text is redacted before it's stored. Never send case inputs to a channel.

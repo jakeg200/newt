@@ -253,3 +253,11 @@ def test_work_already_dealt_with_in_the_app_is_not_sent(chat, client, session):
     client.post(f"/messages/{m.id}/reply", json={"action": "dismiss"}, headers=chat["mentor"])
     deliver_all(session)
     assert chat["mails"] == [] and session.get(Message, m.id).external_ref is None
+
+
+def test_choosing_a_channel_brings_the_latest_waiting_work_along(chat, client, session):
+    waiting = [ask(chat, body=f"Invoice INV-{n}: approve or query?") for n in range(7)]
+    connect_slack(chat, client, session)  # chooses Slack
+    deliver_all(session)
+    sent = [m for m in waiting if session.get(Message, m.id).external_ref]
+    assert len(sent) == channels.CATCH_UP and {m.id for m in sent} == {m.id for m in waiting[-channels.CATCH_UP:]}

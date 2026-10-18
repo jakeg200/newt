@@ -134,3 +134,47 @@ def mentor_actions(items: list[dict], at: datetime | None = None) -> list[dict]:
         out.append({"ref": f"{it['ref']}#done", "item_ref": it["ref"], "acted_at": at.isoformat(), "decision": a["decision"],
                     "fields": a["fields"], "text_outputs": {k: v for k, v in a["text_outputs"].items() if v}})
     return out
+
+
+SUPPLIER_REPLY_DAYS = [1, 1, 2, 2, 4, 5, 6, None]  # how long suppliers take to answer a query (None: never)
+
+
+def threads(n: int = 24, seed: int = 21) -> dict:
+    """Past supplier queries as whole processes, for process replays: the invoice arrives, the mentor decides and writes
+    to the supplier, the supplier answers in the same thread days later (or doesn't, and the mentor chases on day 3),
+    and the mentor closes it. Some plain approvals in between. Everything ends before END, so it's all history."""
+    rng = random.Random(seed)
+    items, actions = [], []
+    start = END - timedelta(days=45)
+    for i in range(n):
+        supplier, gl = rng.choice(SUPPLIERS)
+        inv = f"INV-{20000 + i}"
+        at = start + timedelta(hours=26 * i + rng.randint(0, 6))
+        sender = f"billing@{supplier.split()[0].lower()}.example"
+        thread = f"thread-{inv}"
+        query = i % 3 != 2
+        a = rng.randint(20, 300)
+        text = f"Invoiced {a} units but the goods received note shows {a - rng.randint(1, 9)}" if query else \
+            f"Price variance of £{rng.uniform(1, 30):.2f} across {rng.randint(1, 6)} lines, within the 2% tolerance"
+        item = {"ref": f"{inv}-thread", "received_at": at.isoformat(), "subject": f"{supplier} invoice {inv}", "thread": thread,
+                "sender": sender, "inputs": {"invoice_text": text, "po_record": f"PO-{60000 + i}"}}
+        items.append(item)
+        answer = mentor_answer(item)
+        actions.append({"ref": f"{inv}#d", "item_ref": item["ref"], "acted_at": (at + timedelta(hours=1)).isoformat(),
+                        "decision": answer["decision"], "fields": answer["fields"],
+                        "text_outputs": {k: v for k, v in answer["text_outputs"].items() if v}})
+        if not query:
+            continue
+        actions.append({"ref": f"{inv}#r", "item_ref": item["ref"], "acted_at": (at + timedelta(hours=2)).isoformat(),
+                        "kind": "reply", "text": answer["text_outputs"]["supplier_email"]})
+        days = rng.choice(SUPPLIER_REPLY_DAYS)
+        if days is None or days > 3:  # nothing back by day 3: the mentor chases
+            actions.append({"ref": f"{inv}#chase", "item_ref": item["ref"], "acted_at": (at + timedelta(days=3, hours=2)).isoformat(),
+                            "kind": "reply", "text": f"Hello, just following up on invoice {inv}. Could you let us know where this stands?"})
+        if days is not None:
+            back = at + timedelta(days=days, hours=rng.randint(1, 6))
+            items.append({"ref": f"{inv}-re", "received_at": back.isoformat(), "subject": f"Re: {supplier} invoice {inv}", "thread": thread,
+                          "sender": sender, "inputs": {"invoice_text": "Apologies, we've issued a credit note for the difference.", "po_record": ""}})
+            actions.append({"ref": f"{inv}#close", "item_ref": item["ref"], "acted_at": (back + timedelta(hours=3)).isoformat(),
+                            "kind": "status", "status": "closed"})
+    return {"items": items, "actions": actions, "backtest": True}

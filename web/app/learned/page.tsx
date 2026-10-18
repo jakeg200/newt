@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { RepredictBanner } from "@/components/RepredictBanner";
+import { ChangeTest } from "@/components/improve/ChangeTest";
 import { TaskTypeTabs } from "@/components/TaskTypeTabs";
 import { api, ApiError, type RuleExample, type RuleInfo, type TaskTypeInfo } from "@/lib/api";
 import { InternAvatar } from "@/components/InternAvatar";
@@ -88,7 +88,7 @@ export default function LearnedPage() {
   const [taskTypes, setTaskTypes] = useState<TaskTypeInfo[]>([]);
   const [taskTypeId, setTaskTypeId] = useState<string | null>(null);
   const [rules, setRules] = useState<RuleInfo[]>([]);
-  const [repredict, setRepredict] = useState<string | null>(null);
+  const [testing, setTesting] = useState<string | null>(null);
   const [inferring, setInferring] = useState(false);
   const [newRule, setNewRule] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -108,7 +108,7 @@ export default function LearnedPage() {
   useEffect(() => {
     if (!taskTypeId || !isMentor) return;
     setError(null);
-    setRepredict(null);
+    setTesting(null);
     load(taskTypeId).catch(fail);
   }, [taskTypeId, isMentor, load]);
 
@@ -120,7 +120,7 @@ export default function LearnedPage() {
     setError(null);
     try {
       const r = await fn();
-      if (r.repredict_run_id) setRepredict(r.repredict_run_id);
+      if (r.improvement) setTesting(r.improvement.id);
       await load(taskType!.id);
     } catch (e) {
       fail(e);
@@ -128,7 +128,8 @@ export default function LearnedPage() {
   }
 
   const groups: { status: RuleInfo["status"]; title: string; blurb: string }[] = [
-    { status: "active", title: "What the intern follows", blurb: "Used on every new case. Edit one and it re-predicts your backlog." },
+    { status: "testing", title: "Being tested", blurb: "Not used yet: Newt is trying each one on past cases first, to see what it would change." },
+    { status: "active", title: "What the intern follows", blurb: "Used on every new case. Every change is tested on past cases before it goes live." },
     { status: "proposed", title: "What it thinks you do", blurb: "Spotted in your decisions. Accept the ones that are right, fix the ones that are nearly right." },
     { status: "retired", title: "Retired", blurb: "" },
   ];
@@ -151,7 +152,7 @@ export default function LearnedPage() {
           <button type="button" onClick={() => setError(null)}>Dismiss</button>
         </div>
       )}
-      {repredict && <RepredictBanner key={repredict} runId={repredict} />}
+      {testing && <ChangeTest key={testing} id={testing} onDone={() => load(taskType.id).catch(() => {})} />}
 
       <div className="flex flex-wrap gap-3">
         <button

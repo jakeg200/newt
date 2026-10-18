@@ -101,6 +101,28 @@ def queue_delivery(session: Session, m: Message, user: User) -> None:
     session.add(Job(type="deliver_message", payload={"message_id": m.id}, run_at=m.deliver_after))
 
 
+CATCH_UP = 5  # moving to a channel brings the latest waiting work along, not a flood
+
+
+def catch_up(session: Session, user: User) -> int:
+    """Someone just chose a channel: what's still waiting for them there goes there too (the most recent few)."""
+    if channel_of(user) == "app":
+        return 0
+    waiting = list(session.scalars(select(Message).where(Message.user_id == user.id, Message.direction == "newt",
+                                                         Message.status == "open", Message.kind.in_(NEEDS_ACTION),
+                                                         Message.external_ref.is_(None))
+                                   .order_by(Message.deliver_after.desc()).limit(CATCH_UP)))
+    queued = {(p or {}).get("message_id") for p in session.scalars(select(Job.payload).where(Job.type == "deliver_message",
+                                                                                           Job.status == "queued"))}
+    n = 0
+    for m in reversed(waiting):
+        if m.id in queued:
+            continue
+        session.add(Job(type="deliver_message", payload={"message_id": m.id}))
+        n += 1
+    return n
+
+
 def deliver(session: Session, message_id: str) -> str:
     """The job: post a due message to its person's channel. Stale work (already dealt with in the app) isn't sent."""
     m = session.get(Message, message_id)

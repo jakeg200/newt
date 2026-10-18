@@ -6,6 +6,7 @@ import { STAGE_MOOD } from "@/components/InternAvatar";
 import { Proposal } from "@/components/board/Proposal";
 import { TaskTypeTabs } from "@/components/TaskTypeTabs";
 import { CareerLadder, OutcomeCard } from "@/components/outcomes/OutcomeCard";
+import { ProcessReplay } from "@/components/outcomes/ProcessReplay";
 import { ShowsItsWork } from "@/components/outcomes/ShowsItsWork";
 import { PageHeader } from "@/components/ui";
 import { api, type AgentInfo, type BoardRow, type Career, type ManagerTeam, type Outcomes } from "@/lib/api";
@@ -77,6 +78,7 @@ export default function ReportCardPage() {
       )}
 
       <ShowsItsWork taskTypeId={taskType.id} intern={intern} />
+      <ProcessReplay taskTypeId={taskType.id} canRun={["mentor", "manager", "admin"].includes(user.role)} />
 
       <h2 className="pt-2 text-2xl font-extrabold">Why you can trust these numbers</h2>
       <div className="stagger grid gap-3 sm:grid-cols-3">

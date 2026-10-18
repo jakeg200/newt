@@ -114,7 +114,8 @@ def _on_complete(session: Session, case: Case, row: ActionLog) -> None:
             m.payload = {**m.payload, "completed": {"at": utc(case.completed_at).isoformat(), "what": what, "simulated": simulated}}
     decision = ((session.get(Prediction, row.prediction_id).output or {}).get("decision")) if row.prediction_id else None
     days = routines.follow_up_days(session, tt, decision)
-    if days and not row.payload.get("follow_up"):
+    wrote = any(r.action in ("send_reply", "draft_reply") for r in done if not r.payload.get("follow_up"))
+    if days and wrote and not row.payload.get("follow_up"):  # only chase a message Newt actually sent
         session.add(Job(type="follow_up", payload={"case_id": case.id, "since": utc(case.completed_at).isoformat()},
                         run_at=utc(case.completed_at) + timedelta(days=days)))
 

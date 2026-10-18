@@ -352,7 +352,46 @@ on 298 cases · wrong at most 2.1% · would carry 81%"); the Report card shows a
 **Next iteration:** licences and insurance on the certified record; choosing a first industry; cross-firm priors
 (opt-in).
 
-## 18. Open questions
+## 18. Where people work, getting better safely, proven on whole processes
+
+Three things Hone has that Newt lacked, each built Newt's way (evidence first, a person signs).
+
+**Process replays** (`app/clock.py`, `app/sim/`, `eval/process.py`): certification covered single decisions; owner-level
+work runs over days. A replay takes a past case as a process (it arrived; the team decided, replied, chased, closed;
+the supplier's answer came days later in the thread) and reruns it with Newt in the team's place:
+- One clock: every timestamp goes through `now()`, so simulated time moves only when the replay moves it, and weeks
+  of waiting pass in milliseconds.
+- The real pipeline (`live.predict_one`, policy, executor, follow-ups, chases) runs in a sandbox (a separate
+  connection whose transaction is always rolled back); nothing survives a replay.
+- The director answers Newt's actions like the firm's system and lets the recorded world happen at its recorded
+  times. It never invents a reply; Newt only sees a thread reply once the clock has reached it.
+- Scored against the team: decision, required evidence, policy, replied when they replied, chased when no reply
+  came and not after one did. Handed back is its own honest outcome. The result is evidence beside the statistical
+  gate in promotion requests, never instead of it.
+- On the demo, the first replay found a real bug: a routine with a follow-up on approvals made Newt "chase" a
+  supplier it had never written to. Follow-ups now need a message Newt sent.
+
+**The improvement loop** (`learning/improve.py`, `eval/blast.py`): changes used to go live and be re-checked after.
+Now every change (a rule taught, edited, accepted or retired; a live routine changed; a confirmed exception) is
+replayed on past cases before it goes live: answer the suite as things stand, make the change in the sandbox, answer
+again on the same recordings, and compare. The blast radius says what it fixes, what it breaks and what it moves,
+with the cases. A mentor's change that breaks nothing goes live by itself; anything else waits for the mentor, who
+sees the cases. Rules under test (status "testing") are invisible to agents. Routine changes replay whole processes.
+The Judgement page keeps the change log. The suite over-represents the touched cases, so it says nothing about the
+overall error bound: that is re-certified on the frozen record when the change goes live, as before.
+
+**Newt where people work** (`app/channels/`): Slack, Teams or email, chosen per person, besides the app. Newt's
+messages are still written, stored and timed by the colleague service and etiquette; a channel only delivers them,
+with the app's own buttons (one card mapping onto `colleague.service.reply`). Taps and replies come back
+authenticated (Slack signing secret with a five-minute window; Bot Framework token; a signed per-message reply
+address plus the sender's own address for email) and run through the same code as the app. Moving to a channel
+brings the latest waiting work along (five, not a flood); stale work is never sent. What leaves is the message Newt
+wrote, never case inputs. `scripts/mock_chat.py` stands in for Slack in demos.
+
+**Next iteration:** licences and insurance on the certified record; a first industry; a design partner's real
+history (threads included), which is what makes process replays meaningful.
+
+## 19. Open questions
 
 - Which roles first?
 - Voice provider and call UX.

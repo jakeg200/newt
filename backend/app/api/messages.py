@@ -86,6 +86,9 @@ def set_preferences(body: PrefsIn, user: User = Depends(current_user), session: 
         raise HTTPException(status.HTTP_400_BAD_REQUEST, f"{body.channel.capitalize()} isn't connected for your organisation yet")
     merged = {**etiquette.prefs_from(user.preferences).as_dict(), **body.model_dump(exclude_none=True)}
     linked = {k: v for k, v in (user.preferences or {}).items() if k in channels.IDENTITY_KEYS}  # who they are in Slack/Teams
+    moved = body.channel is not None and body.channel != channels.channel_of(user)
     user.preferences = {**etiquette.prefs_from(merged).as_dict(), **linked}  # validated and normalised
+    if moved:
+        channels.catch_up(session, user)
     session.commit()
     return user.preferences

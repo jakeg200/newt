@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { Bubble, PageHeader } from "@/components/ui";
-import { RepredictBanner } from "@/components/RepredictBanner";
+import { ChangeTest } from "@/components/improve/ChangeTest";
 import { TaskTypeTabs } from "@/components/TaskTypeTabs";
 import { TeachingCard } from "@/components/teaching/TeachingCard";
 import { api, ApiError, type TaskTypeInfo, type TeachingQueue, type TeachingSummary } from "@/lib/api";
@@ -29,7 +29,7 @@ export default function TodayPage() {
   const [queue, setQueue] = useState<TeachingQueue | null>(null);
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
-  const [repredict, setRepredict] = useState<string | null>(null);
+  const [change, setChange] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const isMentor = user?.role === "mentor" || user?.role === "admin";
   const fail = (e: unknown) => setError(e instanceof ApiError ? e.message : String(e));
@@ -51,7 +51,7 @@ export default function TodayPage() {
   useEffect(() => {
     if (!taskTypeId || !user) return;
     setError(null);
-    setRepredict(null);
+    setChange(null);
     load(taskTypeId).catch(fail);
   }, [taskTypeId, user, load]);
 
@@ -92,7 +92,7 @@ export default function TodayPage() {
         </div>
       )}
 
-      {repredict && <RepredictBanner runId={repredict} onDone={() => taskTypeId && load(taskTypeId).catch(() => {})} />}
+      {change && <ChangeTest key={change} id={change} onDone={() => taskTypeId && load(taskTypeId).catch(() => {})} />}
       {toast && (
         <p className="rounded-md bg-stone-900 px-3 py-2 text-sm text-white" role="status">
           {toast}
@@ -116,7 +116,7 @@ export default function TodayPage() {
               const r = await api.lesson({ prediction_id: card.prediction_id, attribution: t.attribution, note: t.note || undefined,
                                            reply_ok: t.reply_ok, rule_text: t.rule_text || undefined });
               setToast(`${r.effect} Saved in ${(r.elapsed_ms / 1000).toFixed(2)} s. ${r.remaining} left.`);
-              if (r.repredict_run_id) setRepredict(r.repredict_run_id);
+              if (r.improvement_id) setChange(r.improvement_id);
               await load(taskType.id);
             } catch (e) {
               fail(e);

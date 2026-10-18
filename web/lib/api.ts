@@ -334,8 +334,76 @@ export interface LessonResult {
   effect: string;
   remaining: number;
   reply_ok: boolean | null;
-  repredict_run_id: string | null;
+  improvement_id: string | null;
   elapsed_ms: number;
+}
+
+export interface Blast {
+  cases: number;
+  fixed: number;
+  broke: number;
+  moved: number;
+  unchanged: number;
+  agreement_before: number | null;
+  agreement_after: number | null;
+  unit?: "processes";
+  examples: Record<"fixed" | "broke" | "moved", { case_id: string; subject: string; team: string | null; before: string | null; after: string | null }[]>;
+}
+
+export interface Improvement {
+  id: string;
+  task_type_id: string;
+  kind: "add_rule" | "edit_rule" | "retire_rule" | "activate_rule" | "routine";
+  rule_id: string | null;
+  summary: string;
+  source: "mentor" | "newt";
+  signal: string;
+  status: "testing" | "ready" | "promoted" | "rejected" | "failed";
+  blast: Blast | Record<string, never>;
+  sentence: string | null;
+  repredict_run_id: string | null;
+  error: string | null;
+  created_at: string;
+  decided_at: string | null;
+}
+
+export interface ProcessEvent { at: string; day: number; who: "team" | "newt" | "world"; what: string; off_script?: boolean; steps?: string[] }
+
+export interface ProcessResult {
+  case_id: string;
+  subject: string;
+  decision: string | null;
+  team_decision: string | null;
+  follow_up_days: number | null;
+  verdict: "like_team" | "handed_back" | "diverged";
+  reasons: string[];
+  hours_sooner: number | null;
+  timeline: ProcessEvent[];
+}
+
+export interface ProcessReplay {
+  id: string;
+  status: "queued" | "running" | "done" | "failed";
+  progress: { done?: number; total?: number };
+  error: string | null;
+  created_at: string;
+  finished_at: string | null;
+  summary: { cases: number; like_team: number; handed_back: number; diverged: number; like_team_rate: number | null;
+             divergences: Record<string, number>; median_hours_sooner: number | null } | null;
+  threshold: { tau: number; source: string } | null;
+  duration_s: number | null;
+  simulated_days: number | null;
+  results: ProcessResult[] | null;
+}
+
+export type ChannelName = "app" | "email" | "slack" | "teams";
+
+export interface Channels {
+  available: Record<ChannelName, boolean>;
+  mine: ChannelName;
+  can_install: { slack: boolean; teams: boolean };
+  linked: { slack: boolean; teams: boolean };
+  teams_code: string | null;
 }
 
 export interface RuleInfo {
@@ -343,14 +411,14 @@ export interface RuleInfo {
   text: string;
   decision: string | null;
   source: "inferred" | "mentor";
-  status: "proposed" | "active" | "retired";
+  status: "proposed" | "testing" | "active" | "retired";
   version: number;
   examples: number;
   stats: { support?: number; matches?: number; precision?: number; method?: string };
   evidence_until: string | null;
   created_at: string;
   updated_at: string;
-  repredict_run_id?: string | null;
+  improvement?: Improvement | null;
 }
 
 export interface RuleExample {
@@ -620,6 +688,16 @@ export const api = {
   updateRule: (id: string, body: { text?: string; status?: RuleInfo["status"] }) =>
     request<RuleInfo>(`/rules/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   ruleExamples: (id: string) => request<RuleExample[]>(`/rules/${id}/examples`),
+  improvement: (id: string) => request<Improvement>(`/improvements/${id}`),
+  improvements: (taskTypeId: string) => request<Improvement[]>(`/task-types/${taskTypeId}/improvements`),
+  promoteImprovement: (id: string, keepAnyway = false) =>
+    request<Improvement>(`/improvements/${id}/promote`, { method: "POST", body: JSON.stringify({ keep_anyway: keepAnyway }) }),
+  rejectImprovement: (id: string) => request<Improvement>(`/improvements/${id}/reject`, { method: "POST" }),
+  processReplay: (taskTypeId: string) => request<ProcessReplay | null>(`/task-types/${taskTypeId}/process-replays/latest`),
+  startProcessReplay: (taskTypeId: string, limit = 50) =>
+    request<ProcessReplay>(`/task-types/${taskTypeId}/process-replays`, { method: "POST", body: JSON.stringify({ limit }) }),
+  channels: () => request<Channels>("/channels"),
+  slackInstall: () => request<{ url: string }>("/channels/slack/install"),
 
   board: () => request<BoardRow[]>("/board"),
   evaluation: (taskTypeId: string) => request<Evaluation>(`/task-types/${taskTypeId}/evaluation`),
@@ -704,6 +782,7 @@ export interface Judgement {
   decisions: number;
   explicit_share: number;
   handbook_version: number | null;
+  changes: Improvement[];
 }
 
 export interface Capacity {
@@ -818,13 +897,14 @@ export interface Career {
 export interface ChatMessage {
   id: string;
   direction: "newt" | "person";
-  kind: "standup" | "question" | "delivery" | "handback" | "draft" | "promotion" | "ack" | "chat" | "weekly" | "followup" | "initiative";
+  kind: "standup" | "question" | "delivery" | "handback" | "draft" | "promotion" | "ack" | "chat" | "weekly" | "followup" | "initiative" | "improvement";
   body: string;
   payload: Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any -- shape depends on kind
   status: "open" | "answered" | "done" | "dismissed";
   urgency: "low" | "normal" | "urgent";
   at: string;
   answered_at: string | null;
+  channel?: ChannelName | null;
 }
 
 export interface ContactPrefs {

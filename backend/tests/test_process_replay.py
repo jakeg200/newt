@@ -154,3 +154,18 @@ def test_replay_results_show_cases_only_to_mentors(client, session):
     assert replay.latest(session, session.get(TaskType, ctx["tt"])) is not None
     listed = client.get(f"/backtests?task_type_id={ctx['tt']}", headers=ctx["mentor"]).json()
     assert all(b["id"] != as_manager["id"] for b in listed)
+
+
+def test_newt_only_chases_what_it_actually_sent(client, session):
+    """Found by replaying the demo: a routine with a follow-up on approvals made Newt 'chase' a supplier it had
+    never written to. A follow-up now needs a message Newt sent."""
+    ctx = setup_team(client, session, history=200)
+    threaded_history(ctx, {0: None})
+    tt = session.get(TaskType, ctx["tt"])
+    client.put(f"/task-types/{tt.id}/routines/approve", json={"steps": ["set_status"], "follow_up_days": 1}, headers=ctx["mentor"])
+    client.post(f"/task-types/{tt.id}/process-replays", json={"limit": 20}, headers=ctx["mentor"])
+    drain(session)
+    out = client.get(f"/task-types/{tt.id}/process-replays/latest", headers=ctx["mentor"]).json()
+    approvals = [r for r in out["results"] if r["decision"] == "approve"]
+    assert approvals and not any(e["what"] == "chased" for r in approvals for e in r["timeline"])
+    assert "chased with nothing to chase" not in out["summary"]["divergences"]

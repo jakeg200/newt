@@ -6,6 +6,7 @@
                                                          (approve-handbook, graduate, autonomy, swap)
     .venv\\Scripts\\python -m demo live 15                   15 new invoices arrive now
     .venv\\Scripts\\python -m demo live 15 --decide          …and the mentor's system reports what they did
+    .venv\\Scripts\\python -m demo threads 24               past supplier queries as whole processes (for replays)
 
 It provisions "Demo Co" (flagged synthetic) in the API's database, then drives everything else
 through the HTTP API, waiting for the API's in-process worker between steps.
@@ -23,7 +24,7 @@ from sqlalchemy import func, select
 from app.config import BACKEND_DIR, get_settings
 from app.db import get_session
 from app.models import Job
-from demo.ap_data import live_items, mentor_actions, number_from
+from demo.ap_data import live_items, mentor_actions, number_from, threads
 from demo.programme import STOPS, TEAM, StepError, provision, run
 
 FEED = BACKEND_DIR.parent / ".demo-feed.json"  # the demo's REST push token; gitignored
@@ -45,7 +46,7 @@ def _feed(http: httpx.Client, mentor: dict) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser(prog="python -m demo")
-    parser.add_argument("command", nargs="?", default="run", choices=["run", "live"])
+    parser.add_argument("command", nargs="?", default="run", choices=["run", "live", "threads"])
     parser.add_argument("count", nargs="?", type=int, default=15)
     parser.add_argument("--api", default="http://127.0.0.1:8000")
     parser.add_argument("--stop-before", choices=STOPS)
@@ -70,6 +71,13 @@ def main() -> None:
             http.get("/health").raise_for_status()
         except httpx.HTTPError:
             raise SystemExit(f"can't reach the API at {args.api}") from None
+        if args.command == "threads":
+            feed = _feed(http, people.mentor)
+            body = threads(args.count)
+            r = http.post(f"/capture/push/{feed['id']}", json=body, headers={"Authorization": f"Bearer {feed['token']}"})
+            r.raise_for_status()
+            print(f"{len(body['items'])} messages and {len(body['actions'])} actions from past supplier threads")
+            return
         if args.command == "live":
             feed = _feed(http, people.mentor)
             first = max(feed.get("next", 0), 1000)  # past the programme's own invoices and earlier live runs

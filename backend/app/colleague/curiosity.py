@@ -125,10 +125,15 @@ def questions(session: Session, tt: TaskType) -> list[Candidate]:
         p = session.get(Prediction, lesson.prediction_id) if lesson.prediction_id else None
         mine = (p.output or {}).get("decision") if p else None
         theirs = session.scalar(select(HumanAction.payload).where(HumanAction.case_id == case.id).order_by(HumanAction.acted_at).limit(1)) or {}
+        if mine == theirs.get("decision"):  # same call, wrong details (a field, or the reply)
+            body = (f"On {_subject(case)} we both chose {_label(mine)}, but I got the details wrong. What should I have seen? "
+                    "A sentence helps me learn the rule nobody wrote down.")
+        else:
+            body = (f"On {_subject(case)} you chose {_label(theirs.get('decision'))} where I'd have chosen {_label(mine)}. "
+                    "What made the difference? A sentence helps me learn the rule nobody wrote down.")
         out.append(Candidate(
             kind="question", dedupe_key=f"why:{lesson.id}", value=0.65,  # best asked while the correction is fresh
-            body=f"On {_subject(case)} you chose {_label(theirs.get('decision'))} where I'd have chosen {_label(mine)}. "
-                 "What made the difference? A sentence helps me learn the rule nobody wrote down.",
+            body=body,
             payload={"type": "why", "lesson_id": lesson.id}))
 
     # Patterns in its mistakes that look like an unwritten rule: proposed for the mentor to confirm.

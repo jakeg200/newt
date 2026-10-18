@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { RepredictBanner } from "@/components/RepredictBanner";
+import { ChangeTest } from "@/components/improve/ChangeTest";
 import { TaskTypeTabs } from "@/components/TaskTypeTabs";
 import { TeachingCard } from "@/components/teaching/TeachingCard";
 import { Bubble, PageHeader, Pills } from "@/components/ui";
@@ -21,7 +21,7 @@ export default function NeedsYouPage() {
   const [kind, setKind] = useState<Kind>("all");
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
-  const [repredict, setRepredict] = useState<string | null>(null);
+  const [change, setChange] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const isMentor = user?.role === "mentor" || user?.role === "admin";
   const fail = (e: unknown) => setError(e instanceof ApiError ? e.message : String(e));
@@ -78,7 +78,7 @@ export default function NeedsYouPage() {
           const r = await api.lesson({ prediction_id: cards[0].prediction_id, attribution: t.attribution, note: t.note || undefined,
                                        reply_ok: t.reply_ok, rule_text: t.rule_text || undefined });
           setToast(`${r.effect} ${r.remaining} left to teach.`);
-          if (r.repredict_run_id) setRepredict(r.repredict_run_id);
+          if (r.improvement_id) setChange(r.improvement_id);
           await load(taskType.id);
         } catch (e) {
           fail(e);
@@ -122,7 +122,7 @@ export default function NeedsYouPage() {
       ]} />
       {error && <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800">{error}</p>}
       {toast && <p className="animate-rise rounded-full bg-ink px-4 py-2 text-sm text-white" role="status">{toast}</p>}
-      {repredict && <RepredictBanner runId={repredict} onDone={() => load(taskType.id).catch(() => {})} />}
+      {change && <ChangeTest key={change} id={change} onDone={() => load(taskType.id).catch(() => {})} />}
 
       {focus ? (
         <div className="grid gap-6 lg:grid-cols-[1fr_18rem]">

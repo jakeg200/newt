@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { api, ApiError, type ContactPrefs as Prefs } from "@/lib/api";
+import { api, ApiError, type Channels, type ContactPrefs as Prefs } from "@/lib/api";
+import { useUser } from "@/lib/user";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -24,9 +25,12 @@ function Toggle({ on, onChange, label, hint }: { on: boolean; onChange: (v: bool
 export function ContactPrefs({ intern }: { intern: string }) {
   const [prefs, setPrefs] = useState<Prefs | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
+  const [channels, setChannels] = useState<Channels | null>(null);
+  const { user } = useUser();
 
   useEffect(() => {
     api.preferences().then(setPrefs).catch(() => {});
+    api.channels().then(setChannels).catch(() => {});
   }, []);
 
   if (!prefs) return null;
@@ -38,6 +42,7 @@ export function ContactPrefs({ intern }: { intern: string }) {
       setSaved("Saved");
     } catch (e) {
       setSaved(e instanceof ApiError ? e.message : "Couldn't save");
+      api.preferences().then(setPrefs).catch(() => {});  // show what's really saved
     }
     setTimeout(() => setSaved(null), 1500);
   };
@@ -95,14 +100,30 @@ export function ContactPrefs({ intern }: { intern: string }) {
 
       <div className="space-y-2 border-t border-stone-100 pt-4">
         <p className="font-medium">Where {intern} talks to you</p>
+        <p className="text-sm text-stone-500">Wherever you pick, it keeps the same hours and the same buttons, and everything still shows here.</p>
         <div className="flex flex-wrap gap-1.5">
-          {([["app", "Here", true], ["slack", "Slack", false], ["teams", "Teams", false], ["email", "Email", false]] as const).map(([k, l, ready]) => (
-            <button key={k} type="button" disabled={!ready} onClick={() => save({ channel: k })}
-                    className={`rounded-full px-3 py-1.5 text-sm ${prefs.channel === k ? "bg-ink text-white" : "bg-stone-100 text-stone-500"} disabled:opacity-60`}>
-              {l}{!ready && <span className="ml-1 text-[10px] uppercase tracking-wide">soon</span>}
-            </button>
-          ))}
+          {([["app", "Here"], ["slack", "Slack"], ["teams", "Teams"], ["email", "Email"]] as const).map(([k, l]) => {
+            const ready = k === "app" || !!channels?.available[k];
+            return (
+              <button key={k} type="button" disabled={!ready} onClick={() => save({ channel: k })}
+                      className={`rounded-full px-3 py-1.5 text-sm ${prefs.channel === k ? "bg-ink text-white" : "bg-stone-100 text-stone-600"} disabled:opacity-50`}>
+                {l}{!ready && <span className="ml-1 text-[10px] uppercase tracking-wide">not connected</span>}
+              </button>
+            );
+          })}
         </div>
+        {channels && !channels.available.slack && channels.can_install.slack && (user?.role === "manager" || user?.role === "admin") && (
+          <button type="button" onClick={async () => { try { window.location.href = (await api.slackInstall()).url; } catch (e) { setSaved(e instanceof ApiError ? e.message : String(e)); } }}
+                  className="rounded-full bg-[#4A154B] px-3.5 py-1.5 text-sm font-medium text-white">Connect Slack for your organisation</button>
+        )}
+        {channels?.available.teams && !channels.linked.teams && channels.teams_code && (
+          <p className="rounded-2xl bg-stone-50 px-3.5 py-2.5 text-sm">
+            To get {intern} in Teams, open the Newt app in Teams and send it: <code className="rounded bg-white px-1.5 py-0.5 font-mono ring-1 ring-stone-200">link {channels.teams_code}</code>
+          </p>
+        )}
+        {channels && !channels.available.slack && !channels.available.teams && !channels.available.email && (
+          <p className="text-xs text-stone-400">Slack, Teams and email are switched on per organisation by whoever runs Newt for you.</p>
+        )}
       </div>
     </section>
   );

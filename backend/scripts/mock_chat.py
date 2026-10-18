@@ -15,6 +15,7 @@ import hmac
 import html
 import json
 import os
+import re
 import time
 from urllib.parse import urlencode
 
@@ -73,7 +74,9 @@ def _render(m: dict) -> str:
                 f"<button class='{e.get('style', '')}'>{html.escape(e['text']['text'])}</button></form>" for e in b["elements"])
             parts.append(f"<div class=actions>{buttons}</div>")
         elif b["type"] == "context":
-            parts.append(f"<small>{html.escape(b['elements'][0]['text'])}</small>")
+            text = html.escape(b["elements"][0]["text"])
+            text = re.sub(r"&lt;(https?://[^|]+)\|([^&]+)&gt;", r"<a href='\1' target=_blank>\2</a>", text)  # Slack's <url|label>
+            parts.append(f"<small>{text}</small>")
     reply = (f"<form method=post action=/say class=reply><input type=hidden name=channel value='{m['channel']}'>"
              f"<input type=hidden name=thread value='{m['ts']}'><input name=text placeholder='Reply in thread'><button>Send</button></form>")
     who = "Newt" if not m.get("from_me") else "You"

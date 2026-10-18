@@ -4,28 +4,67 @@
     {
       "name": "api",
       "runtimeExecutable": "backend/.venv/Scripts/python.exe",
-      "runtimeArgs": ["-m", "uvicorn", "app.main:app", "--port", "8000", "--app-dir", "backend"],
+      "runtimeArgs": [
+        "-m",
+        "uvicorn",
+        "app.main:app",
+        "--port",
+        "8000",
+        "--app-dir",
+        "backend"
+      ],
       "port": 8000,
       "url": "http://127.0.0.1:8000"
     },
     {
       "name": "api-demo",
       "runtimeExecutable": "backend/.venv/Scripts/python.exe",
-      "runtimeArgs": ["-c", "import os, uvicorn; os.environ['DATABASE_URL'] = 'sqlite:///backend/demo.db'; uvicorn.run('app.main:app', port=8000, app_dir='backend')"],
+      "runtimeArgs": [
+        "-c",
+        "import os, uvicorn; os.environ.update(DATABASE_URL='sqlite:///backend/demo.db', SLACK_API_URL='http://127.0.0.1:8300/api', SLACK_SIGNING_SECRET='demo-signing'); uvicorn.run('app.main:app', port=8000, app_dir='backend')"
+      ],
       "port": 8000,
       "url": "http://127.0.0.1:8000"
     },
     {
       "name": "mock-system",
       "runtimeExecutable": "backend/.venv/Scripts/python.exe",
-      "runtimeArgs": ["-m", "uvicorn", "scripts.mock_system:app", "--port", "8200", "--app-dir", "backend"],
+      "runtimeArgs": [
+        "-m",
+        "uvicorn",
+        "scripts.mock_system:app",
+        "--port",
+        "8200",
+        "--app-dir",
+        "backend"
+      ],
       "port": 8200,
       "url": "http://127.0.0.1:8200"
     },
     {
+      "name": "mock-chat",
+      "runtimeExecutable": "backend/.venv/Scripts/python.exe",
+      "runtimeArgs": [
+        "-m",
+        "uvicorn",
+        "scripts.mock_chat:app",
+        "--port",
+        "8300",
+        "--app-dir",
+        "backend"
+      ],
+      "port": 8300,
+      "url": "http://127.0.0.1:8300"
+    },
+    {
       "name": "web",
       "runtimeExecutable": "C:/Program Files/nodejs/npm.cmd",
-      "runtimeArgs": ["--prefix", "web", "run", "dev"],
+      "runtimeArgs": [
+        "--prefix",
+        "web",
+        "run",
+        "dev"
+      ],
       "port": 3000
     }
   ]
