@@ -1,13 +1,14 @@
 """Data model from BRIEF.md. Portable across SQLite (dev) and Postgres (production)."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.clock import now
 from app.db import Base
 
 Json = JSON().with_variant(JSONB(), "postgresql")
@@ -18,7 +19,8 @@ def new_id() -> str:
 
 
 def utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    """The app's one clock: real time, or simulated time inside a process replay (`app/clock.py`)."""
+    return now()
 
 
 def pk() -> Mapped[str]:

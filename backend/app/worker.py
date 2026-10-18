@@ -41,12 +41,19 @@ def _follow_up(session: Session, payload: dict) -> object:
     return follow_up(session, payload["case_id"], payload["since"])
 
 
+def _process_replay(session: Session, payload: dict) -> object:
+    from app.sim.replay import execute as replay
+
+    return replay(session, payload["run_id"])
+
+
 HANDLERS: dict[str, Callable[[Session, dict], object]] = {
     "backtest": lambda session, payload: execute(session, payload["run_id"]),
     "live_predict": _live_predict,
     "live_score": _live_score,
     "execute_action": _execute_action,
     "follow_up": _follow_up,
+    "process_replay": _process_replay,
 }
 
 

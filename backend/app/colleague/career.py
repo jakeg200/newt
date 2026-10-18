@@ -83,6 +83,20 @@ def owner_ready(session: Session, tt: TaskType) -> dict[str, Any] | None:
     return {"kpi": targeted[0]["metric"], "label": targeted[0]["label"], "coverage": ev["coverage"]}
 
 
+def process_evidence(session: Session, tt: TaskType) -> tuple[str, dict[str, Any] | None]:
+    """The latest process replay, as a sentence for a review and as evidence. It sits beside the statistical gate and
+    never replaces it: a manager reads it before signing."""
+    from app.sim.replay import pass_rate
+
+    pr = pass_rate(session, tt)
+    if not pr or not pr.get("cases"):
+        return "", None
+    carried = pr["cases"] - pr["handed_back"]
+    sentence = (f" Replayed end to end on {pr['cases']} past cases, I ran {pr['like_team']} of the {carried} I'd have carried "
+                f"just as the team did" + (f", and handed {pr['handed_back']} back" if pr["handed_back"] else "") + ".")
+    return sentence, pr
+
+
 def grant(session: Session, user: User, tt: TaskType, responsibility: str) -> dict[str, Any]:
     if user.role not in ("manager", "admin"):
         raise PermissionError("new responsibilities are the manager's call")

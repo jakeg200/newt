@@ -141,4 +141,4 @@ def get_career(task_type_id: str, user: User = Depends(current_user), session: S
     tt = _tt(session, user, task_type_id)
     r = career.rank(session, tt)
     return {"rank": r, "title": career.TITLES[r], "ladder": [{"rank": k, "title": career.TITLES[k]} for k in career.RANKS],
-            "responsibilities": career.responsibilities(session, tt)}
+            "responsibilities": career.responsibilities(session, tt), "process": career.process_evidence(session, tt)[1]}

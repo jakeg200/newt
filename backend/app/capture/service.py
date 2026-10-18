@@ -202,12 +202,13 @@ class PushAction(BaseModel):
     acted_at: datetime
     item_ref: str | None = None
     thread: str | None = None
-    kind: Literal["decision", "label", "status"] = "decision"
+    kind: Literal["decision", "label", "status", "reply"] = "decision"  # reply: someone wrote back to the sender
     decision: str | None = None
     label: str | None = None
     status: str | None = None
     fields: dict[str, Any] = Field(default_factory=dict)
     text_outputs: dict[str, str] = Field(default_factory=dict)
+    text: str = Field(default="", max_length=20000)  # a reply's text; redacted on the way in
 
 
 class PushBody(BaseModel):
@@ -246,7 +247,8 @@ def push(session: Session, connection: Connection, body: PushBody) -> CaptureRun
             continue
         batch.actions.append(
             Action(source_ref=a.ref, acted_at=_utc(a.acted_at), kind=a.kind, item_ref=a.item_ref, thread_ref=a.thread,
-                   decision=a.decision, label=a.label, status=a.status, fields=a.fields, text_outputs=a.text_outputs)
+                   decision=a.decision, label=a.label, status=a.status, fields=a.fields, text_outputs=a.text_outputs,
+                   text=a.text)
         )
     return ingest(session, connection, batch, live_after=None if body.backtest else aware(connection.created_at))
 

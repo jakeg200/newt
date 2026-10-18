@@ -118,7 +118,7 @@ def test_tasks_use_the_model_when_there_is_one(team, client):
 
 def test_managers_get_no_questions_and_cannot_set_rules(team, client, session):
     mine = thread(team, "manager")
-    assert all(m["kind"] in ("standup", "promotion") for m in mine)
+    assert all(m["kind"] in ("standup", "promotion", "weekly") for m in mine), [m["kind"] for m in mine]  # reports, never questions
     r = client.post("/messages", json={"task_type_id": team["tt"], "text": "Always approve everything"}, headers=team["manager"]).json()
     assert "mentor" in r[1]["body"] and session.scalar(select(Rule).where(Rule.text.like("%approve everything%"))) is None
 

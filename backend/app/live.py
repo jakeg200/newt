@@ -59,40 +59,50 @@ def predict_cases(session: Session, case_ids: list[str]) -> int:
         runner = runner_for(agent)
         calibrator = Calibrator.load(tt.calibration)
         batch = sorted((c for c in cases if c.task_type_id == tt_id), key=lambda c: utc(c.received_at))
-        earliest = utc(batch[0].received_at)
-        model = DecisionModel([Example(d.decided_at, " ".join([(d.case.snapshot or {}).get("subject", ""),
-                                                                 *[str(v) for v in ((d.case.snapshot or {}).get("inputs") or {}).values()]]),
-                                       d.decision) for d in builder.decided.values() if d.decided_at < earliest])
+        model = decision_model(builder, utc(batch[0].received_at))
         for case in batch:
             if session.scalar(select(Prediction.id).where(Prediction.case_id == case.id, Prediction.run_id.is_(None))):
                 continue  # already predicted
-            ctx = builder.build(case)
-            check(ctx, builder.forbidden(case))
-            result = runner.predict(ctx)
-            if result.output is not None:  # whatever the agent, only the task's output shape goes further
-                try:
-                    result.output = validate_output(result.output, task).model_dump()
-                except ValueError as exc:
-                    result.output, result.error = None, f"the agent's answer didn't fit the task: {exc}"[:300]
-            clf = model.prob(handback.item_text(ctx), result.output["decision"]) if result.output else None
-            raw = raw_score(result.confidence, clf)
-            conf = calibrator(raw) if result.output else None
-            hb = handback.decide(ctx, result, conf, tt.tau) if tt.status in ("supervised", "autonomous") else {"hand_back": False, "reasons": []}
-            p = Prediction(case_id=case.id, agent_id=agent.id, run_id=None, agent_version=agent.version, model=result.model,
-                           handbook_version=ctx.handbook_version, rules_version=ctx.rules_version,
-                           output={**(result.output or {}), "confidence": {"self": result.confidence, "classifier": clf,
-                                                                            "raw": raw, "calibrated": conf},
-                                   "hand_back": hb, "mode": tt.status} if result.output else {"hand_back": hb, "mode": tt.status},
-                           confidence=conf, error=result.error, input_tokens=result.input_tokens,
-                           output_tokens=result.output_tokens, cost_usd=result.cost_usd, latency_ms=result.latency_ms,
-                           trajectory=result.trajectory)
-            session.add(p)
-            session.flush()
-            if result.output and not hb["hand_back"] and tt.status in ("supervised", "autonomous"):
-                _act(session, tt, task, case, p, mode=tt.status)
+            predict_one(session, tt, task, agent, builder, runner, calibrator, model, case, mode=tt.status, tau=tt.tau)
             done += 1
         session.commit()
     return done
+
+
+def decision_model(builder: ContextBuilder, before) -> DecisionModel:
+    return DecisionModel([Example(d.decided_at, " ".join([(d.case.snapshot or {}).get("subject", ""),
+                                                          *[str(v) for v in ((d.case.snapshot or {}).get("inputs") or {}).values()]]),
+                                  d.decision) for d in builder.decided.values() if d.decided_at < before])
+
+
+def predict_one(session: Session, tt: TaskType, task: TaskTypeConfig, agent: Agent, builder: ContextBuilder, runner,
+                calibrator: Calibrator, model: DecisionModel, case: Case, *, mode: str, tau: float | None) -> Prediction:
+    """Predict one arriving item and, at a trusted stage, act on it. Live work and process replays share this."""
+    ctx = builder.build(case)
+    check(ctx, builder.forbidden(case))
+    result = runner.predict(ctx)
+    if result.output is not None:  # whatever the agent, only the task's output shape goes further
+        try:
+            result.output = validate_output(result.output, task).model_dump()
+        except ValueError as exc:
+            result.output, result.error = None, f"the agent's answer didn't fit the task: {exc}"[:300]
+    clf = model.prob(handback.item_text(ctx), result.output["decision"]) if result.output else None
+    raw = raw_score(result.confidence, clf)
+    conf = calibrator(raw) if result.output else None
+    hb = handback.decide(ctx, result, conf, tau) if mode in ("supervised", "autonomous") else {"hand_back": False, "reasons": []}
+    p = Prediction(case_id=case.id, agent_id=agent.id, run_id=None, agent_version=agent.version, model=result.model,
+                   handbook_version=ctx.handbook_version, rules_version=ctx.rules_version,
+                   output={**(result.output or {}), "confidence": {"self": result.confidence, "classifier": clf,
+                                                                    "raw": raw, "calibrated": conf},
+                           "hand_back": hb, "mode": mode} if result.output else {"hand_back": hb, "mode": mode},
+                   confidence=conf, error=result.error, input_tokens=result.input_tokens,
+                   output_tokens=result.output_tokens, cost_usd=result.cost_usd, latency_ms=result.latency_ms,
+                   trajectory=result.trajectory)
+    session.add(p)
+    session.flush()
+    if result.output and not hb["hand_back"] and mode in ("supervised", "autonomous"):
+        _act(session, tt, task, case, p, mode=mode)
+    return p
 
 
 def _act(session: Session, tt: TaskType, task: TaskTypeConfig, case: Case, p: Prediction, mode: str) -> None:

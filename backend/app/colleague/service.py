@@ -130,7 +130,13 @@ def _weekly(session: Session, tt: TaskType, now: datetime) -> tuple[str, dict[st
         body += f", giving back {this['hours_returned']} hours"
     body += "."
     misses = [k["label"] for k in o["kpis"] if k["on_track"] is False]
-    body += f" Behind on: {', '.join(misses)}." if misses else " Everything I'm measured on is on track."
+    hits = [k for k in o["kpis"] if k["on_track"] is True]
+    if misses:
+        body += f" Behind on: {', '.join(misses)}."
+    elif hits:
+        body += " Everything I'm measured on is on track."
+    else:
+        body += " Nothing to measure against yet."
     return body, {"kpis": o["kpis"], "simulated": o["simulated"], "rank": career.rank(session, tt)}
 
 
@@ -139,17 +145,18 @@ def _weekly(session: Session, tt: TaskType, now: datetime) -> tuple[str, dict[st
 def _promotion(session: Session, user: User, tt: TaskType) -> tuple[str, str, dict[str, Any]] | None:
     """A request to move up, sent to whoever may sign it, only when the evidence is there: a performance review."""
     if user.role in ("manager", "admin"):
+        process_line, process = career.process_evidence(session, tt)
         owner = career.owner_ready(session, tt)
         if owner:
             return ("owner", (f"I'm carrying {round(owner['coverage'] * 100)}% of this role with certified evidence, and every goal has been "
                               f"on track for {career.OWNER_WEEKS_ON_TRACK} weeks. May I own '{owner['label']}' as an outcome? I'll find what "
-                              "drives it, propose fixes for you to agree, and report the result every week."),
-                    {**engine.evaluate(session, tt), "responsibility": "owner"})
+                              "drives it, propose fixes for you to agree, and report the result every week." + process_line),
+                    {**engine.evaluate(session, tt), "responsibility": "owner", "process": process})
         ready = career.senior_ready(session, tt)
         if ready:
             return ("senior", (f"I've passed {ready['audits_passed']} spot checks in a row since graduating. May I take on chasing "
-                               "replies myself? I'll follow up politely when nothing has happened, and tell the team each time."),
-                    {**engine.evaluate(session, tt), "responsibility": "follow_ups"})
+                               "replies myself? I'll follow up politely when nothing has happened, and tell the team each time." + process_line),
+                    {**engine.evaluate(session, tt), "responsibility": "follow_ups", "process": process})
     ev = engine.evaluate(session, tt)
     if tt.status in ("shadow", "demoted") and ev.get("eligible") and user.role in MENTOR_ROLES:
         return ("supervised", (f"{ev['errors_above']} mistakes in {ev['n_above']} cases I was sure about. At worst I'd be wrong "

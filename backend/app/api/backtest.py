@@ -101,7 +101,7 @@ def list_backtests(task_type_id: str, user: User = Depends(current_user), sessio
         select(BacktestRun, Agent).join(Agent).where(BacktestRun.task_type_id == task_type_id)
         .order_by(BacktestRun.created_at.desc()).limit(100)
     ).all()
-    return [_run_out(r, a) for r, a in rows if r.params.get("kind") != "repredict"][:50]
+    return [_run_out(r, a) for r, a in rows if r.params.get("kind") not in ("repredict", "process", "candidate")][:50]
 
 
 def _load_run(session: Session, user: User, run_id: str) -> BacktestRun:

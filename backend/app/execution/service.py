@@ -9,6 +9,7 @@ follow_up() if nothing has happened a few days after Newt finished, it chases, o
 
 import hashlib
 import hmac
+from contextvars import ContextVar
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -19,7 +20,7 @@ from app.actions import policy
 from app.agents.context import utc
 from app.config import get_settings
 from app.execution import destinations, routines
-from app.execution.executor import ExecResult, SimulatedExecutor, WebhookExecutor
+from app.execution.executor import ExecResult, Executor, SimulatedExecutor, WebhookExecutor
 from app.logs import get_logger
 from app.models import (ActionLog, Apprenticeship, Case, HumanAction, Job, Message, Prediction, TaskType, User, utcnow)
 from app.task_types import TaskTypeConfig
@@ -27,6 +28,8 @@ from app.task_types import TaskTypeConfig
 log = get_logger("execution")
 MAX_ATTEMPTS = 3
 BACKOFF_S = 30
+# A process replay's director stands in for the firm's system (app/sim/director.py); never set in live work.
+executor_override: ContextVar[Executor | None] = ContextVar("executor_override", default=None)
 
 
 class ExecutionError(ValueError):
@@ -63,7 +66,7 @@ def run(session: Session, action_id: str) -> str | None:
     row.exec_status, row.attempts, row.destination_id = "running", row.attempts + 1, dest.id if dest else None
     session.commit()
     decision = ((session.get(Prediction, row.prediction_id).output or {}).get("decision")) if row.prediction_id else None
-    executor = WebhookExecutor(dest.url, destinations.secret_of(dest)) if dest else SimulatedExecutor()
+    executor = executor_override.get() or (WebhookExecutor(dest.url, destinations.secret_of(dest)) if dest else SimulatedExecutor())
     result = executor.execute(_payload(row, case, decision))
     return _apply(session, row, result)
 
@@ -194,14 +197,26 @@ def _responsible_for_follow_ups(session: Session, tt: TaskType) -> bool:
     return bool(resp.get("follow_ups"))
 
 
+def moved_on(session: Session, case: Case, since: datetime) -> bool:
+    """Has anything happened on this work since `since`, up to now? Someone acted on it, or a new message arrived in
+    its thread (the supplier replied). Only up to now: a replay never sees what hadn't happened yet."""
+    now = utcnow()
+    if any(since < utc(a.acted_at) <= now for a in session.scalars(select(HumanAction).where(HumanAction.case_id == case.id))):
+        return True
+    thread = (case.match_keys or {}).get("thread")
+    if not thread:
+        return False
+    return any((c.match_keys or {}).get("thread") == thread and since < utc(c.received_at) <= now
+               for c in session.scalars(select(Case).where(Case.task_type_id == case.task_type_id, Case.id != case.id,
+                                                           Case.received_at > since)))
+
+
 def follow_up(session: Session, case_id: str, since: str) -> str:
     """Days after Newt finished: if nothing has happened, a senior Newt chases on its own; otherwise it asks."""
     case = session.get(Case, case_id)
     if case is None:
         return "gone"
-    after = datetime.fromisoformat(since)
-    moved = any(utc(a.acted_at) > after for a in session.scalars(select(HumanAction).where(HumanAction.case_id == case.id)))
-    if moved:
+    if moved_on(session, case, datetime.fromisoformat(since)):
         return "moved on"
     tt = session.get(TaskType, case.task_type_id)
     subject = (case.snapshot or {}).get("subject") or "a case"
