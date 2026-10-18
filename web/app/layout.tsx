@@ -13,7 +13,7 @@ const caveat = Caveat({ variable: "--font-caveat", subsets: ["latin"], weight: [
 
 export const metadata: Metadata = {
   title: BRAND,
-  description: "Onboard AI agents like new hires, and prove what they can be trusted with.",
+  description: "AI employees trained for one job, like a new hire: they shadow your team, practise under supervision, and earn autonomy on evidence.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

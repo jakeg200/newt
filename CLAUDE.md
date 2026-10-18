@@ -1,4 +1,4 @@
-# Agent Onboarding
+# Newt (formerly "Agent Onboarding")
 
 We onboard AI agents like new hires, so companies know exactly what they can trust them with.
 Read BRIEF.md for the product and PLAN.md for the milestones. Decisions already taken are in

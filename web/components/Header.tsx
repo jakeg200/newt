@@ -30,6 +30,7 @@ export function Header() {
           <nav className="ml-auto hidden gap-1 text-sm sm:flex" aria-label="Sections">
             <a href="#how" className="rounded-full px-3 py-1.5 text-stone-600 hover:bg-stone-100">How it works</a>
             <a href="#trust" className="rounded-full px-3 py-1.5 text-stone-600 hover:bg-stone-100">Why trust it</a>
+            <a href="#faq" className="rounded-full px-3 py-1.5 text-stone-600 hover:bg-stone-100">FAQ</a>
           </nav>
           <Link href="/" className="ml-auto rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white sm:ml-0">Open the app</Link>
         </div>
