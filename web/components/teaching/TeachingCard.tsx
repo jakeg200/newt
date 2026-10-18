@@ -92,7 +92,7 @@ export function TeachingCard({ card, busy, onTeach }: {
   const kind = KIND[card.kind];
 
   return (
-    <article className="space-y-5 rounded-lg border border-stone-200 bg-white p-5">
+    <article className="space-y-5 rounded-3xl border border-stone-200 bg-white p-5">
       <header className="space-y-1">
         <div className="flex flex-wrap items-center gap-2">
           <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${kind.style}`}>{kind.text}</span>

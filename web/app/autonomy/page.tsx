@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { TaskTypeTabs } from "@/components/TaskTypeTabs";
 import { api, ApiError, type AuditCard, type Digest, type DraftCard, type HandbackCard, type TaskTypeInfo } from "@/lib/api";
+import { InternAvatar } from "@/components/InternAvatar";
 import { useUser } from "@/lib/user";
 
 const label = (s: string | null | undefined) => (s ? s.replace(/_/g, " ") : "–");
@@ -35,7 +36,7 @@ function Draft({ card, decisions, onDone }: { card: DraftCard; decisions: string
   }
 
   return (
-    <li className="space-y-2 rounded-lg border border-stone-200 bg-white p-4">
+    <li className="space-y-2 rounded-3xl border border-stone-200 bg-white p-4">
       <p className="font-medium">{card.case.subject || card.case.id}</p>
       <Inputs inputs={card.case.inputs} />
       <div className="rounded-md bg-stone-50 p-3 text-sm">
@@ -61,18 +62,18 @@ function Draft({ card, decisions, onDone }: { card: DraftCard; decisions: string
       <div className="flex flex-wrap gap-2">
         {!editing ? (
           <>
-            <button type="button" disabled={busy} className="rounded-md bg-brand-700 px-3 py-1.5 text-sm font-medium text-white"
+            <button type="button" disabled={busy} className="rounded-full bg-brand-600 px-4 py-1.5 text-sm font-medium text-white"
                     onClick={() => act(async () => { await api.approveDraft(card.prediction_id); return "Approved as drafted."; })}>
               Approve
             </button>
-            <button type="button" disabled={busy} className="rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm"
+            <button type="button" disabled={busy} className="rounded-full border border-stone-300 bg-white px-4 py-1.5 text-sm"
                     onClick={() => setEditing(true)}>
               Edit
             </button>
           </>
         ) : (
           <>
-            <button type="button" disabled={busy} className="rounded-md bg-brand-700 px-3 py-1.5 text-sm font-medium text-white"
+            <button type="button" disabled={busy} className="rounded-full bg-brand-600 px-4 py-1.5 text-sm font-medium text-white"
                     onClick={() => act(async () => {
                       const r = decision === card.agent.decision
                         ? await api.approveDraft(card.prediction_id, replyKey ? { text_outputs: { [replyKey]: reply } } : {})
@@ -92,7 +93,7 @@ function Draft({ card, decisions, onDone }: { card: DraftCard; decisions: string
 function Audit({ card, decisions, onDone }: { card: AuditCard; decisions: string[]; onDone: (msg: string) => void }) {
   const [decision, setDecision] = useState(decisions[0]);
   return (
-    <li className="space-y-2 rounded-lg border border-stone-200 bg-white p-4">
+    <li className="space-y-2 rounded-3xl border border-stone-200 bg-white p-4">
       <p className="font-medium">{card.case.subject || card.case.id}</p>
       <Inputs inputs={card.case.inputs} />
       <p className="text-xs text-stone-500">The intern already handled this. Decide it yourself; you&apos;ll see its answer after.</p>
@@ -106,7 +107,7 @@ function Audit({ card, decisions, onDone }: { card: AuditCard; decisions: string
         <select value={decision} onChange={(e) => setDecision(e.target.value)} className="rounded-md border border-stone-300 px-2 py-1 text-sm">
           {decisions.map((d) => <option key={d} value={d}>{label(d)}</option>)}
         </select>
-        <button type="submit" className="rounded-md bg-stone-900 px-3 py-1.5 text-sm font-medium text-white">Submit</button>
+        <button type="submit" className="rounded-full bg-ink px-4 py-1.5 text-sm font-medium text-white">Submit</button>
       </form>
     </li>
   );
@@ -155,10 +156,10 @@ export default function AutonomyPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="stagger space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight">Autonomy</h1>
+          <div className="flex items-center gap-4"><InternAvatar mood="working" growth="adult" size={72} className="hidden shrink-0 sm:block" /><h1 className="text-3xl sm:text-4xl">Autonomy</h1></div>
           <p className="max-w-2xl text-sm text-stone-600">
             In supervised practice the intern drafts and you approve. Once autonomous it acts alone, but only through allowed
             actions, hands back anything unusual, and some of its work comes to you blind as an audit.
@@ -167,7 +168,7 @@ export default function AutonomyPage() {
         <TaskTypeTabs taskTypes={taskTypes} value={taskTypeId} onChange={setTaskTypeId} />
       </div>
       {error && <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{error}</p>}
-      {toast && <p className="rounded-md bg-stone-900 px-3 py-2 text-sm text-white" role="status">{toast}</p>}
+      {toast && <p className="rounded-full bg-ink px-4 py-2 text-sm text-white" role="status">{toast}</p>}
 
       {digest && (
         <dl className="grid grid-cols-2 gap-3 sm:grid-cols-5">
@@ -178,7 +179,7 @@ export default function AutonomyPage() {
             ["Actions blocked", String(digest.actions_blocked)],
             ["Audits waiting", String(digest.audits_pending)],
           ].map(([k, v]) => (
-            <div key={k} className="rounded-lg border border-stone-200 bg-white p-3">
+            <div key={k} className="rounded-3xl border border-stone-200 bg-white p-3">
               <dt className="text-xs text-stone-500">{k}</dt>
               <dd className="text-lg font-semibold tabular-nums">{v}</dd>
             </div>
@@ -206,7 +207,7 @@ export default function AutonomyPage() {
             <section className="space-y-3">
               <h2 className="font-medium">Handed back to you <span className="text-sm font-normal text-stone-500">· {handbacks.length}</span></h2>
               {handbacks.length === 0 ? <p className="text-sm text-stone-500">Nothing handed back.</p> : (
-                <ul className="divide-y divide-stone-100 rounded-lg border border-stone-200 bg-white">
+                <ul className="divide-y divide-stone-100 rounded-3xl border border-stone-200 bg-white">
                   {handbacks.map((h) => (
                     <li key={h.prediction_id} className="space-y-1 px-4 py-3 text-sm">
                       <p className="font-medium">{h.case.subject || h.case.id}</p>
@@ -219,7 +220,7 @@ export default function AutonomyPage() {
             {digest?.recent && digest.recent.length > 0 && (
               <section className="space-y-2">
                 <h2 className="font-medium">What it did on its own</h2>
-                <ul className="divide-y divide-stone-100 rounded-lg border border-stone-200 bg-white text-sm">
+                <ul className="divide-y divide-stone-100 rounded-3xl border border-stone-200 bg-white text-sm">
                   {digest.recent.slice(0, 15).map((r, i) => (
                     <li key={i} className="flex flex-wrap gap-x-2 px-4 py-2">
                       <span className={`rounded px-1.5 text-xs ${r.status === "executed" ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-800"}`}>{r.status}</span>

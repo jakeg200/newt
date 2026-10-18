@@ -154,7 +154,7 @@ function ItemEditor({
         <input value={values.sources} onChange={(e) => set("sources", e.target.value)} className={`${input} font-mono`} />
       </label>
       <div className="flex gap-2">
-        <button type="submit" className="rounded-md bg-stone-900 px-3 py-1 text-sm font-medium text-white">
+        <button type="submit" className="rounded-full bg-ink px-4 py-1 text-sm font-medium text-white">
           Save
         </button>
         <button type="button" onClick={onCancel} className="rounded-md px-3 py-1 text-sm text-stone-600 hover:bg-stone-100">
@@ -215,7 +215,7 @@ export function HandbookView({
       type="button"
       disabled={!!busy || !hasSources}
       onClick={() => run("draft", onDraft)}
-      className="rounded-md bg-brand-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-800 disabled:opacity-40"
+      className="rounded-full bg-brand-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-brand-800 disabled:opacity-40"
       title={hasSources ? undefined : "Upload documents or answer the questionnaire first"}
     >
       {busy === "draft" ? "Drafting… (up to 2 minutes)" : versions.length ? "Draft a new version" : "Draft the handbook"}
@@ -299,7 +299,7 @@ export function HandbookView({
               type="button"
               disabled={!!busy}
               onClick={() => run("revise", onRevise)}
-              className="rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm font-medium hover:bg-stone-50"
+              className="rounded-full border border-stone-300 bg-white px-4 py-1.5 text-sm font-medium hover:bg-stone-50"
             >
               Start a revision
             </button>
@@ -320,7 +320,7 @@ export function HandbookView({
         <p className="text-sm text-stone-500">Edit anything below. The manager approves it when it&apos;s right.</p>
       )}
 
-      <section className="rounded-lg border border-stone-200 bg-white p-4">
+      <section className="rounded-3xl border border-stone-200 bg-white p-4">
         <h3 className="mb-1 text-xs font-medium uppercase tracking-wide text-stone-500">Purpose</h3>
         <div className="flex flex-wrap items-start justify-between gap-2">
           <p className="max-w-3xl">{content.purpose.text || <span className="text-stone-400">Not set</span>}</p>
@@ -331,7 +331,7 @@ export function HandbookView({
       {SECTIONS.map((section) => {
         const items = content[section.key] as unknown as AnyItem[];
         return (
-          <section key={section.key} className="rounded-lg border border-stone-200 bg-white">
+          <section key={section.key} className="rounded-3xl border border-stone-200 bg-white">
             <header className="flex items-baseline justify-between gap-2 border-b border-stone-100 px-4 py-2.5">
               <h3 className="font-medium">
                 {section.title} <span className="text-sm font-normal text-stone-500">· {section.blurb}</span>

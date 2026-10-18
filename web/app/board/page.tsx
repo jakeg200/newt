@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Proposal } from "@/components/board/Proposal";
 import { api, ApiError, type AgentInfo, type BoardRow, type Stage } from "@/lib/api";
+import { InternAvatar } from "@/components/InternAvatar";
 import { useUser } from "@/lib/user";
 
 const STAGE_STYLE: Record<Stage, string> = {
@@ -46,16 +47,16 @@ export default function BoardPage() {
   const builtIn = agents.find((a) => a.kind === "built_in");
 
   return (
-    <div className="space-y-6">
+    <div className="stagger space-y-6">
       <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Task board</h1>
+        <div className="flex items-center gap-4"><InternAvatar mood="graduated" growth="adult" size={72} className="hidden shrink-0 sm:block" /><h1 className="text-3xl sm:text-4xl">Task board</h1></div>
         <p className="max-w-2xl text-sm text-stone-600">
           Each task type earns its own autonomy. It moves on when the evidence clears the bar and the right person signs,
           and back when audits, drift or a model change say so.
         </p>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-stone-200 bg-white">
+      <div className="overflow-x-auto rounded-3xl border border-stone-200 bg-white">
         <table className="w-full min-w-[40rem] text-left text-sm">
           <thead className="border-b border-stone-200 text-xs text-stone-500">
             <tr>
@@ -113,7 +114,7 @@ export default function BoardPage() {
       </div>
 
       {row && (
-        <section className="space-y-3 rounded-lg border border-stone-200 bg-white p-5">
+        <section className="space-y-3 rounded-3xl border border-stone-200 bg-white p-5">
           <h2 className="font-medium">Graduation proposal · {row.name}</h2>
           <Proposal row={row} role={user.role} agentId={builtIn?.id ?? null} onChanged={() => load().catch(() => {})} />
         </section>

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { RepredictBanner } from "@/components/RepredictBanner";
 import { TaskTypeTabs } from "@/components/TaskTypeTabs";
 import { api, ApiError, type RuleExample, type RuleInfo, type TaskTypeInfo } from "@/lib/api";
+import { InternAvatar } from "@/components/InternAvatar";
 import { useUser } from "@/lib/user";
 
 const label = (s: string | null) => (s ? s.replace(/_/g, " ") : "no decision named");
@@ -36,7 +37,7 @@ function RuleRow({ rule, onSave, onStatus }: {
         >
           <textarea value={text} onChange={(e) => setText(e.target.value)} rows={2} className="w-full rounded-md border border-stone-300 px-2.5 py-1.5 text-sm" />
           <div className="flex gap-2">
-            <button type="submit" className="rounded-md bg-stone-900 px-3 py-1 text-xs font-medium text-white">Save and re-predict</button>
+            <button type="submit" className="rounded-full bg-ink px-4 py-1 text-xs font-medium text-white">Save and re-predict</button>
             <button type="button" onClick={() => { setText(rule.text); setEditing(false); }} className="text-xs text-stone-500">Cancel</button>
           </div>
         </form>
@@ -133,10 +134,10 @@ export default function LearnedPage() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="stagger space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight">What I&apos;ve learned</h1>
+          <div className="flex items-center gap-4"><InternAvatar mood="learning" growth="eft" size={72} className="hidden shrink-0 sm:block" /><h1 className="text-3xl sm:text-4xl">What I&apos;ve learned</h1></div>
           <p className="max-w-2xl text-sm text-stone-600">
             The intern&apos;s picture of how you decide, in plain English. Fixing one rule fixes every case it touches.
           </p>
@@ -167,7 +168,7 @@ export default function LearnedPage() {
               setInferring(false);
             }
           }}
-          className="rounded-md bg-brand-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-800 disabled:opacity-40"
+          className="rounded-full bg-brand-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-brand-800 disabled:opacity-40"
         >
           {inferring ? "Reading your decisions…" : "Find rules in my decisions"}
         </button>
@@ -182,7 +183,7 @@ export default function LearnedPage() {
         >
           <input value={newRule} onChange={(e) => setNewRule(e.target.value)} placeholder='Add a rule, e.g. When an item mentions "key account", choose escalate.'
                  className="flex-1 rounded-md border border-stone-300 bg-white px-2.5 py-1.5 text-sm" />
-          <button type="submit" className="rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm font-medium">Add</button>
+          <button type="submit" className="rounded-full border border-stone-300 bg-white px-4 py-1.5 text-sm font-medium">Add</button>
         </form>
       </div>
 
@@ -199,7 +200,7 @@ export default function LearnedPage() {
             {list.length === 0 ? (
               <p className="text-sm text-stone-400">None yet.</p>
             ) : (
-              <ul className="divide-y divide-stone-100 rounded-lg border border-stone-200 bg-white">
+              <ul className="divide-y divide-stone-100 rounded-3xl border border-stone-200 bg-white">
                 {list.map((r) => (
                   <RuleRow key={`${r.id}-${r.version}-${r.status}`} rule={r}
                            onSave={(text) => change(() => api.updateRule(r.id, { text }))}

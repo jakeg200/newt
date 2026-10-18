@@ -35,7 +35,7 @@ function SignIn() {
             <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email"
                    className="w-full rounded-md border border-stone-300 px-2.5 py-1.5" />
           </label>
-          <button type="submit" className="w-full rounded-md bg-stone-900 px-3 py-1.5 text-sm font-medium text-white">Email me a link</button>
+          <button type="submit" className="w-full rounded-full bg-ink px-4 py-1.5 text-sm font-medium text-white">Email me a link</button>
           <p className="text-xs text-stone-500">Accounts are set up by your administrator.</p>
         </form>
       )}

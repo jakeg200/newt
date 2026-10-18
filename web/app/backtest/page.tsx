@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { RunResults } from "@/components/backtest/RunResults";
 import { api, ApiError, type AgentInfo, type BacktestRun, type Estimate, type TaskTypeInfo } from "@/lib/api";
+import { InternAvatar } from "@/components/InternAvatar";
 import { useUser } from "@/lib/user";
 
 const STATUS_STYLE: Record<BacktestRun["status"], string> = {
@@ -20,7 +21,7 @@ function NewAgentForm({ onCreated }: { onCreated: (a: AgentInfo) => void }) {
 
   return (
     <form
-      className="space-y-2 rounded-lg border border-stone-200 bg-white p-4"
+      className="space-y-2 rounded-3xl border border-stone-200 bg-white p-4"
       onSubmit={async (e) => {
         e.preventDefault();
         setError(null);
@@ -54,7 +55,7 @@ function NewAgentForm({ onCreated }: { onCreated: (a: AgentInfo) => void }) {
         </label>
       </div>
       {error && <p className="text-sm text-red-700">{error}</p>}
-      <button type="submit" className="rounded-md bg-stone-900 px-3 py-1.5 text-sm font-medium text-white">
+      <button type="submit" className="rounded-full bg-ink px-4 py-1.5 text-sm font-medium text-white">
         Register agent
       </button>
     </form>
@@ -134,7 +135,7 @@ export default function BacktestPage() {
     <div className="space-y-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight">Backtest</h1>
+          <div className="flex items-center gap-4"><InternAvatar mood="thinking" growth="larva" size={72} className="hidden shrink-0 sm:block" /><h1 className="text-3xl sm:text-4xl">Backtest</h1></div>
           <p className="max-w-2xl text-sm text-stone-600">
             Before shadowing live work, the agent replays the mentor&apos;s decided history. Each case is predicted using only
             what was known when it arrived, then compared with what the mentor actually did.
@@ -167,7 +168,7 @@ export default function BacktestPage() {
       <div className="grid gap-8 lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
         <aside className="space-y-6">
           {canRun && (
-            <section className="space-y-3 rounded-lg border border-stone-200 bg-white p-4">
+            <section className="space-y-3 rounded-3xl border border-stone-200 bg-white p-4">
               <h2 className="font-medium">New backtest</h2>
               <label className="block space-y-1 text-sm">
                 <span>Agent</span>
@@ -209,7 +210,7 @@ export default function BacktestPage() {
                 type="button"
                 disabled={!estimate || estimate.cases === 0 || active}
                 onClick={start}
-                className="w-full rounded-md bg-brand-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-800 disabled:opacity-40"
+                className="w-full rounded-full bg-brand-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-brand-800 disabled:opacity-40"
               >
                 {active ? "A backtest is running…" : "Start backtest"}
               </button>
@@ -283,7 +284,7 @@ export default function BacktestPage() {
                 })}
               </div>
               {run && (
-                <div className="rounded-lg border border-stone-200 bg-white p-5">
+                <div className="rounded-3xl border border-stone-200 bg-white p-5">
                   <RunResults run={run} canSeeCases={canSeeCases} />
                 </div>
               )}

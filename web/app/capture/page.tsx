@@ -6,6 +6,7 @@ import { CaseDrawer } from "@/components/capture/CaseDrawer";
 import { ConnectionCard } from "@/components/capture/ConnectionCard";
 import { NewConnectionForm } from "@/components/capture/NewConnectionForm";
 import { api, ApiError, type CaseDetail, type CaseSummary, type ConnectionInfo, type TaskTypeInfo, type Unmatched } from "@/lib/api";
+import { InternAvatar } from "@/components/InternAvatar";
 import { useUser } from "@/lib/user";
 
 const PAGE = 25;
@@ -93,7 +94,7 @@ function CapturePage() {
     <div className="space-y-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight">Capture</h1>
+          <div className="flex items-center gap-4"><InternAvatar mood="learning" growth="larva" size={72} className="hidden shrink-0 sm:block" /><h1 className="text-3xl sm:text-4xl">Capture</h1></div>
           <p className="max-w-2xl text-sm text-stone-600">
             Where the work comes from. Each item becomes a case, and what the mentor actually did is matched back to it.
             That pairing is what the agent is scored against. Personal details are redacted before anything is stored.
@@ -134,7 +135,7 @@ function CapturePage() {
           <div className="flex items-center justify-between">
             <h2 className="font-medium">Connections</h2>
             {canCapture && !adding && (
-              <button type="button" onClick={() => setAdding(true)} className="rounded-md bg-stone-900 px-3 py-1.5 text-sm font-medium text-white">
+              <button type="button" onClick={() => setAdding(true)} className="rounded-full bg-ink px-4 py-1.5 text-sm font-medium text-white">
                 Add connection
               </button>
             )}
@@ -194,7 +195,7 @@ function CapturePage() {
           ) : cases.items.length === 0 ? (
             <p className="text-sm text-stone-500">No cases yet.</p>
           ) : (
-            <div className="overflow-x-auto rounded-lg border border-stone-200 bg-white">
+            <div className="overflow-x-auto rounded-3xl border border-stone-200 bg-white">
               <table className="w-full text-left text-sm">
                 <thead className="border-b border-stone-200 text-xs text-stone-500">
                   <tr>

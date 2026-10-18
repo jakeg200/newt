@@ -6,6 +6,7 @@ import { HandbookView } from "@/components/orientation/HandbookView";
 import { Questionnaire } from "@/components/orientation/Questionnaire";
 import { SourcePanel } from "@/components/orientation/SourcePanel";
 import { api, ApiError, type Handbook, type Passage, type Question, type SourceDoc } from "@/lib/api";
+import { InternAvatar } from "@/components/InternAvatar";
 import { useUser } from "@/lib/user";
 
 function Step({ n, title, done, children }: { n: number; title: string; done?: boolean; children: React.ReactNode }) {
@@ -93,7 +94,7 @@ export default function OrientationPage() {
     <div className="space-y-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight">Orientation</h1>
+          <div className="flex items-center gap-4"><InternAvatar mood="learning" growth="egg" size={72} className="hidden shrink-0 sm:block" /><h1 className="text-3xl sm:text-4xl">Orientation</h1></div>
           <p className="max-w-2xl text-sm text-stone-600">
             The agent&apos;s handbook, written from this team&apos;s own documents and its mentor&apos;s answers. Every line
             links to where it came from, and nothing is live until the manager approves it.

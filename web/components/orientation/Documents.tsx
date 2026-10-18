@@ -59,7 +59,7 @@ export function Documents({
             type="button"
             disabled={busy}
             onClick={() => input.current?.click()}
-            className="rounded-md border border-stone-300 bg-white px-3 py-1.5 font-medium hover:bg-stone-50 disabled:opacity-50"
+            className="rounded-full border border-stone-300 bg-white px-4 py-1.5 font-medium hover:bg-stone-50 disabled:opacity-50"
           >
             Choose files
           </button>
@@ -88,7 +88,7 @@ export function Documents({
       {docs.length === 0 ? (
         <p className="text-sm text-stone-500">No documents yet.</p>
       ) : (
-        <ul className="divide-y divide-stone-100 rounded-lg border border-stone-200 bg-white">
+        <ul className="divide-y divide-stone-100 rounded-3xl border border-stone-200 bg-white">
           {docs.map((d) => (
             <li key={d.id} className="flex items-center gap-3 px-3 py-2 text-sm">
               <span className="w-6 shrink-0 text-right font-mono text-xs text-stone-500">{d.doc_index}</span>

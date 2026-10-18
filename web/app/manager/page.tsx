@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { api, ApiError, type ManagerSettings, type ManagerTeam, type Stage } from "@/lib/api";
+import { InternAvatar } from "@/components/InternAvatar";
 import { useUser } from "@/lib/user";
 
 const pct = (x: number | null | undefined, d = 0) => (x === null || x === undefined ? "–" : `${(x * 100).toFixed(d)}%`);
@@ -67,7 +68,7 @@ function SettingsForm({ team, settings, onSaved }: { team: string; settings: Man
         <input value={form.usd_rate} onChange={set("usd_rate")} inputMode="decimal" className={input} />
       </label>
       <div className="flex items-end">
-        <button type="submit" className="w-full rounded-md bg-stone-900 px-3 py-1.5 text-sm font-medium text-white">Save</button>
+        <button type="submit" className="w-full rounded-full bg-ink px-4 py-1.5 text-sm font-medium text-white">Save</button>
       </div>
       {error && <p className="col-span-full text-sm text-red-700">{error}</p>}
     </form>
@@ -89,9 +90,9 @@ export default function ManagerPage() {
   const isManager = user.role === "manager" || user.role === "admin";
 
   return (
-    <div className="space-y-6">
+    <div className="stagger space-y-6">
       <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Manager</h1>
+        <div className="flex items-center gap-4"><InternAvatar mood="neutral" growth="adult" size={72} className="hidden shrink-0 sm:block" /><h1 className="text-3xl sm:text-4xl">Manager</h1></div>
         <p className="max-w-2xl text-sm text-stone-600">
           What the agents did for each team in the last {data.period_days} days, and what it&apos;s worth. People&apos;s own
           performance isn&apos;t measured here.
@@ -101,7 +102,7 @@ export default function ManagerPage() {
       {data.teams.map((t) => {
         const cur = t.settings.currency;
         return (
-          <section key={t.team} className="space-y-4 rounded-lg border border-stone-200 bg-white p-5">
+          <section key={t.team} className="space-y-4 rounded-3xl border border-stone-200 bg-white p-5">
             <header className="flex flex-wrap items-baseline justify-between gap-2">
               <h2 className="text-lg font-medium">{label(t.team)}</h2>
               <p className="text-sm text-stone-500">

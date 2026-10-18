@@ -165,7 +165,7 @@ export function RunResults({ run, canSeeCases }: { run: BacktestRun; canSeeCases
           ) : cases.length === 0 ? (
             <p className="text-sm text-stone-500">None.</p>
           ) : (
-            <ul className="divide-y divide-stone-100 rounded-lg border border-stone-200 bg-white">
+            <ul className="divide-y divide-stone-100 rounded-3xl border border-stone-200 bg-white">
               {cases.map((c) => (
                 <li key={c.case_id} className="space-y-1 px-3 py-2 text-sm">
                   <p className="font-medium">{c.subject || c.case_id}</p>

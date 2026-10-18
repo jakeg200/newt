@@ -53,7 +53,7 @@ export function ConnectionCard({
   const button = "rounded-md border border-stone-300 bg-white px-2.5 py-1 text-xs font-medium hover:bg-stone-50 disabled:opacity-40";
 
   return (
-    <article className="space-y-3 rounded-lg border border-stone-200 bg-white p-4">
+    <article className="space-y-3 rounded-3xl border border-stone-200 bg-white p-4">
       <header className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <h3 className="font-medium">{c.name}</h3>

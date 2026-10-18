@@ -74,7 +74,7 @@ export function NewConnectionForm({
   }
 
   return (
-    <form onSubmit={submit} className="space-y-3 rounded-lg border border-stone-200 bg-white p-4">
+    <form onSubmit={submit} className="space-y-3 rounded-3xl border border-stone-200 bg-white p-4">
       <fieldset className="space-y-1.5">
         <legend className="mb-1 text-sm font-medium">Source</legend>
         {PROVIDERS.map((p) => (
@@ -136,7 +136,7 @@ export function NewConnectionForm({
 
       {error && <p className="text-sm text-red-700">{error}</p>}
       <div className="flex gap-2">
-        <button type="submit" disabled={busy} className="rounded-md bg-stone-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-40">
+        <button type="submit" disabled={busy} className="rounded-full bg-ink px-4 py-1.5 text-sm font-medium text-white disabled:opacity-40">
           {busy ? "Creating…" : "Create connection"}
         </button>
         <button type="button" onClick={onCancel} className="rounded-md px-3 py-1.5 text-sm text-stone-600 hover:bg-stone-100">

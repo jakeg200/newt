@@ -71,7 +71,7 @@ export function Questionnaire({
             type="button"
             disabled={!dirty || saving}
             onClick={save}
-            className="rounded-md bg-stone-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-40"
+            className="rounded-full bg-ink px-4 py-1.5 text-sm font-medium text-white disabled:opacity-40"
           >
             {saving ? "Saving…" : "Save answers"}
           </button>
