@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { InternAvatar } from "@/components/InternAvatar";
 import { useUser } from "@/lib/user";
@@ -36,7 +38,9 @@ function SignIn() {
                    className="w-full rounded-md border border-stone-300 px-2.5 py-1.5" />
           </label>
           <button type="submit" className="w-full rounded-full bg-ink px-4 py-1.5 text-sm font-medium text-white">Email me a link</button>
-          <p className="text-xs text-stone-500">Accounts are set up by your administrator.</p>
+          <p className="text-xs text-stone-500">
+            Accounts are set up by your administrator. New here? <Link href="/welcome" className="underline">Meet Newt</Link>.
+          </p>
         </form>
       )}
       {(problem || error) && <p className="text-sm text-red-700">{problem ?? error}</p>}
@@ -44,8 +48,13 @@ function SignIn() {
   );
 }
 
+/** Public pages (the landing page) skip sign-in and the synthetic-org banner. */
+export const isPublic = (pathname: string) => pathname.startsWith("/welcome");
+
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const { mode, signedOut, user } = useUser();
+  const pathname = usePathname();
+  if (isPublic(pathname)) return <>{children}</>;
   if (mode === "supabase" && signedOut) return <SignIn />;
   return (
     <>

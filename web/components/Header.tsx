@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { isPublic } from "@/components/AuthGate";
 import { InternAvatar } from "@/components/InternAvatar";
 import { BRAND } from "@/lib/brand";
 import { useUser } from "@/lib/user";
@@ -17,6 +18,24 @@ const NAV = [
 export function Header() {
   const { mode, users, user, setUser, signOut, error } = useUser();
   const pathname = usePathname();
+
+  if (isPublic(pathname)) {
+    return (
+      <header className="sticky top-0 z-30 px-3 pt-3 sm:px-6">
+        <div className="mx-auto flex max-w-6xl items-center gap-4 rounded-3xl border border-stone-200 bg-white/90 px-4 py-2.5 shadow-[0_8px_30px_-16px_rgb(27_23_20/0.35)] backdrop-blur">
+          <Link href="/welcome" className="flex items-center gap-2 font-[family-name:var(--font-display)] text-lg font-extrabold tracking-tight">
+            <InternAvatar size={28} decorative />
+            {BRAND}
+          </Link>
+          <nav className="ml-auto hidden gap-1 text-sm sm:flex" aria-label="Sections">
+            <a href="#how" className="rounded-full px-3 py-1.5 text-stone-600 hover:bg-stone-100">How it works</a>
+            <a href="#trust" className="rounded-full px-3 py-1.5 text-stone-600 hover:bg-stone-100">Why trust it</a>
+          </nav>
+          <Link href="/" className="ml-auto rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white sm:ml-0">Open the app</Link>
+        </div>
+      </header>
+    );
+  }
 
   return (
     <header className="sticky top-0 z-30 px-3 pt-3 sm:px-6">
