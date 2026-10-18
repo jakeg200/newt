@@ -13,6 +13,7 @@ never knows anything Newt couldn't have known at that moment.
 """
 
 import time
+from collections.abc import Callable
 from typing import Any
 
 from sqlalchemy import delete, select
@@ -88,8 +89,12 @@ def _drain(s: Session, clk: clock.SimClock, sc: Scenario, before: set[str]) -> N
 
 
 def replay_case(session: Session, tt_id: str, sc: Scenario, recording: dict[str, Any], calibration: dict[str, Any],
-                tau: float) -> dict[str, Any]:
+                tau: float, prepare: Callable[[Session, TaskType], object] | None = None) -> dict[str, Any]:
+    """One scenario end to end. `prepare` changes the sandbox first (a candidate routine, for its blast radius)."""
     with sandbox(session) as s:
+        if prepare is not None:
+            prepare(s, s.get(TaskType, tt_id))
+            s.commit()
         tt = s.get(TaskType, tt_id)
         task = TaskTypeConfig.model_validate(tt.config)
         app_ = s.get(Apprenticeship, tt.apprenticeship_id)

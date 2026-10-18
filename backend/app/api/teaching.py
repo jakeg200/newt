@@ -6,14 +6,15 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth import current_user, require_role
-from app.backtest.runner import create_repredict
+
 from app.capture.service import org_task_type
 from app.config import get_settings
 from app.db import get_session
-from app.graduation.engine import on_procedure_change
+
+from app.learning import improve
 from app.learning import rules as rules_mod
 from app.learning import teaching
-from app.models import Agent, Apprenticeship, Case, HumanAction, Rule, TaskType, User
+from app.models import Case, HumanAction, Improvement, Rule, TaskType, User
 
 router = APIRouter(tags=["teaching"])
 
@@ -93,10 +94,6 @@ def infer_rules(body: InferIn, user: User = Depends(mentor), session: Session = 
     return [_rule_out(r) for r in rules_mod.infer(session, tt, user, provider)]
 
 
-def _agent(session: Session, tt: TaskType) -> Agent:
-    return session.get(Agent, session.get(Apprenticeship, tt.apprenticeship_id).agent_id)
-
-
 class RuleIn(BaseModel):
     task_type_id: str
     text: str = Field(min_length=5, max_length=500)
@@ -105,12 +102,9 @@ class RuleIn(BaseModel):
 @router.post("/rules", status_code=status.HTTP_201_CREATED)
 def create_rule(body: RuleIn, user: User = Depends(mentor), session: Session = Depends(get_session)) -> dict[str, Any]:
     tt = _task_type(session, user, body.task_type_id)
-    rule = rules_mod.write(session, tt, user, body.text)
-    session.flush()
-    run = create_repredict(session, user, tt, _agent(session, tt), reason=f"new rule: {rule.text[:80]}")
-    on_procedure_change(session, tt, user, f"new rule: {rule.text[:80]}")
+    imp = improve.propose(session, tt, user, "add_rule", text=body.text)
     session.commit()
-    return {**_rule_out(rule), "repredict_run_id": run.id if run else None}
+    return {**_rule_out(session.get(Rule, imp.rule_id)), "improvement": improve.out(imp)}
 
 
 class RulePatch(BaseModel):
@@ -130,14 +124,58 @@ def _rule(session: Session, user: User, rule_id: str) -> tuple[Rule, TaskType]:
 @router.patch("/rules/{rule_id}")
 def update_rule(rule_id: str, body: RulePatch, user: User = Depends(mentor), session: Session = Depends(get_session)) -> dict[str, Any]:
     rule, tt = _rule(session, user, rule_id)
-    affects = rules_mod.update(session, tt, rule, text=body.text, status=body.status)
-    run = None
-    if affects:
-        what = "edited" if body.text else {"active": "accepted", "retired": "retired"}.get(body.status or "", "changed")
-        run = create_repredict(session, user, tt, _agent(session, tt), reason=f"rule {what}: {rule.text[:80]}")
-        on_procedure_change(session, tt, user, f"rule {what}: {rule.text[:80]}")
+    imp = None
+    if body.text is not None and body.text.strip() != rule.text and rule.status == "active":
+        imp = improve.propose(session, tt, user, "edit_rule", rule=rule, text=body.text)
+    elif body.status == "active" and rule.status != "active":
+        imp = improve.propose(session, tt, user, "activate_rule", rule=rule, signal="inferred" if rule.source == "inferred" else "taught")
+    elif body.status == "retired" and rule.status == "active":
+        imp = improve.propose(session, tt, user, "retire_rule", rule=rule)
+    else:  # not live, so nothing to test: edits to proposals, retiring a proposal
+        rules_mod.update(session, tt, rule, text=body.text, status=body.status)
     session.commit()
-    return {**_rule_out(rule), "repredict_run_id": run.id if run else None}
+    return {**_rule_out(rule), "improvement": improve.out(imp) if imp else None}
+
+
+@router.get("/task-types/{task_type_id}/improvements")
+def list_improvements(task_type_id: str, user: User = Depends(current_user), session: Session = Depends(get_session)) -> list[dict[str, Any]]:
+    return improve.log_of(session, _task_type(session, user, task_type_id))
+
+
+def _improvement(session: Session, user: User, improvement_id: str) -> Improvement:
+    imp = session.get(Improvement, improvement_id)
+    if imp is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "change not found")
+    _task_type(session, user, imp.task_type_id)  # org check
+    return imp
+
+
+@router.get("/improvements/{improvement_id}")
+def get_improvement(improvement_id: str, user: User = Depends(current_user), session: Session = Depends(get_session)) -> dict[str, Any]:
+    return improve.out(_improvement(session, user, improvement_id))
+
+
+class PromoteIn(BaseModel):
+    keep_anyway: bool = False
+
+
+@router.post("/improvements/{improvement_id}/promote")
+def promote_improvement(improvement_id: str, body: PromoteIn | None = None, user: User = Depends(mentor),
+                        session: Session = Depends(get_session)) -> dict[str, Any]:
+    imp = _improvement(session, user, improvement_id)
+    try:
+        return improve.out(improve.promote(session, user, imp, keep_anyway=(body or PromoteIn()).keep_anyway))
+    except improve.ImproveError as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
+
+
+@router.post("/improvements/{improvement_id}/reject")
+def reject_improvement(improvement_id: str, user: User = Depends(mentor), session: Session = Depends(get_session)) -> dict[str, Any]:
+    imp = _improvement(session, user, improvement_id)
+    try:
+        return improve.out(improve.reject(session, user, imp))
+    except improve.ImproveError as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
 
 
 @router.get("/rules/{rule_id}/examples")

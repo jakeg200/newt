@@ -17,6 +17,7 @@ from app.task_types import TaskTypeConfig
 from app.worker import run_once
 
 from tests.backtest_fixtures import COLUMNS, ledger_csv, ledger_rows
+from tests.graduation_fixtures import go_live
 
 
 @pytest.fixture
@@ -103,15 +104,21 @@ def test_rule_edit_repredicts_backlog_and_counts_changes(client, session, taught
     assert limit_rule["decision"] == "escalate" and limit_rule["status"] == "proposed" and limit_rule["examples"] > 0
 
     accepted = client.patch(f"/rules/{limit_rule['id']}", json={"status": "active"}, headers=taught["mentor"]).json()
-    assert accepted["repredict_run_id"] and run_once(session)
-    first = session.get(BacktestRun, accepted["repredict_run_id"])
+    assert accepted["status"] == "proposed" and accepted["improvement"]["status"] == "testing"  # not live until tested
+    [imp] = go_live(session, client, taught["mentor"])
+    assert imp.status == "promoted" and imp.blast["cases"] > 0 and run_once(session)
+    first = session.get(BacktestRun, imp.repredict_run_id)
     assert first.status == "done" and first.params["kind"] == "repredict" and len(first.params["case_ids"]) == 50
 
     edited = client.patch(f"/rules/{limit_rule['id']}", json={
         "text": 'When an item mentions "approval limit", choose query supplier.'}, headers=taught["mentor"]).json()
+    assert edited["improvement"]["kind"] == "edit_rule"
+    [imp] = go_live(session, client, taught["mentor"])
+    edited = client.get(f"/rules?task_type_id={taught['tt']}", headers=taught["mentor"]).json()
+    edited = next(r for r in edited if r["id"] == limit_rule["id"])
     assert edited["decision"] == "query_supplier" and edited["source"] == "mentor" and edited["version"] == 2
     assert run_once(session)
-    run = session.get(BacktestRun, edited["repredict_run_id"])
+    run = session.get(BacktestRun, imp.repredict_run_id)
     backlog = session.scalars(select(Case).where(Case.id.in_(run.params["case_ids"]))).all()
     mention = [c for c in backlog if "approval limit" in c.snapshot["inputs"]["invoice_text"]
                and c.id not in (session.get(Rule, limit_rule["id"]).supporting_case_ids or [])]
@@ -128,12 +135,15 @@ def test_rule_edit_repredicts_backlog_and_counts_changes(client, session, taught
 def test_retiring_a_rule_also_repredicts(client, session, taught):
     rule = client.post("/rules", json={"task_type_id": taught["tt"], "text": 'When an item mentions "units", choose escalate.'},
                        headers=taught["mentor"]).json()
-    assert rule["status"] == "active" and rule["repredict_run_id"]
+    assert rule["status"] == "testing"
+    [added] = go_live(session, client, taught["mentor"])
+    assert added.blast["broke"] > 0  # against the team's history: it waited for the mentor, who kept it anyway
     run_once(session)
-    retired = client.patch(f"/rules/{rule['id']}", json={"status": "retired"}, headers=taught["mentor"]).json()
-    assert retired["repredict_run_id"]
+    client.patch(f"/rules/{rule['id']}", json={"status": "retired"}, headers=taught["mentor"])
+    [retired] = go_live(session, client, taught["mentor"])
+    assert retired.status == "promoted" and retired.blast["fixed"] > retired.blast["broke"]
     run_once(session)
-    assert session.get(BacktestRun, retired["repredict_run_id"]).stats["changed"] > 0
+    assert session.get(BacktestRun, retired.repredict_run_id).stats["changed"] > 0
 
 
 def test_lesson_can_carry_a_new_rule(client, session, taught):
@@ -141,7 +151,7 @@ def test_lesson_can_carry_a_new_rule(client, session, taught):
     resp = client.post("/lessons", json={"prediction_id": card["prediction_id"], "attribution": "couldnt_know",
                                          "rule_text": 'When an item mentions "credit note", choose query supplier.'},
                        headers=taught["mentor"]).json()
-    assert resp["repredict_run_id"] and "rule is active" in resp["effect"]
+    assert resp["improvement_id"] and "being tested" in resp["effect"]
     rule = session.scalar(select(Rule).where(Rule.source == "mentor"))
     assert rule.supporting_case_ids == [card["case"]["id"]]  # never applied to the case it came from
 

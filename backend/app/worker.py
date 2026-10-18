@@ -47,6 +47,12 @@ def _process_replay(session: Session, payload: dict) -> object:
     return replay(session, payload["run_id"])
 
 
+def _improvement_replay(session: Session, payload: dict) -> object:
+    from app.learning.improve import execute as test_change
+
+    return test_change(session, payload["improvement_id"])
+
+
 HANDLERS: dict[str, Callable[[Session, dict], object]] = {
     "backtest": lambda session, payload: execute(session, payload["run_id"]),
     "live_predict": _live_predict,
@@ -54,6 +60,7 @@ HANDLERS: dict[str, Callable[[Session, dict], object]] = {
     "execute_action": _execute_action,
     "follow_up": _follow_up,
     "process_replay": _process_replay,
+    "improvement_replay": _improvement_replay,
 }
 
 

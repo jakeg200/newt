@@ -148,7 +148,7 @@ def questions(session: Session, tt: TaskType) -> list[Candidate]:
                 body=(f"I think there's a rule nobody wrote down: \"{ex['text']}\" I got {ex['misses']} of these wrong, and the team "
                       f"does this {round((ex['agreement'] or 0) * 100)}% of the time. Shall I follow it?"),
                 payload={"type": "exception", "text": ex["text"], "decision": ex["decision"], "coverage": ex["coverage"],
-                         "examples": ex["examples"], "options": ["yes", "no"]}))
+                         "examples": ex["examples"], "case_ids": ex.get("case_ids", []), "options": ["yes", "no"]}))
 
     # The role's first-week questions, until they're answered.
     if task.question_bank:

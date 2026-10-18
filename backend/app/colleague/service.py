@@ -19,7 +19,8 @@ from app.graduation import engine
 from app.learning import teaching
 from app.live import decide_draft, pending_drafts, score_cases
 from app.manager import DEFAULT_INTERN_NAME
-from app.models import (ActionLog, Agent, Apprenticeship, Audit, Case, HumanAction, Message, Prediction, TaskType, User,
+from app.models import (ActionLog, Agent, Apprenticeship, Audit, Case, HumanAction, Improvement, Message, Prediction, Rule,
+                        TaskType, User,
                         utcnow)
 from app.task_types import TaskTypeConfig
 
@@ -171,6 +172,36 @@ def _promotion(session: Session, user: User, tt: TaskType) -> tuple[str, str, di
     return None
 
 
+# Improvements ----------------------------------------------------------------------------------
+
+def tell_improvement(session: Session, tt: TaskType, imp: Improvement, *, live: bool) -> Message:
+    """The result of testing a change, to the mentor. Live: it broke nothing, so it's in use. Otherwise: the cases it
+    would change, and their call."""
+    from app.eval import blast
+
+    mentor = session.get(User, session.get(Apprenticeship, tt.apprenticeship_id).mentor_id)
+    user = session.get(User, imp.proposed_by) if imp.proposed_by else mentor
+    if user is None or user.role not in MENTOR_ROLES:
+        user = mentor
+    b = imp.blast or {}
+    what = imp.summary
+    if live:
+        body = f"{what}. {blast.sentence(b)} So it's live, and I'm re-checking my recent answers with it."
+        kind, status = "ack", "done"
+    elif imp.source == "mentor":
+        body = (f"Before I use it: {what}. {blast.sentence(b)} Your team decided those {b.get('broke', 0)} differently. "
+                "Use it anyway?")
+        kind, status = "improvement", "open"
+    else:
+        body = f"I'd like to change how I work. {what}. {blast.sentence(b)} Shall I?"
+        kind, status = "improvement", "open"
+    when = etiquette.deliver_at(utcnow(), etiquette.prefs_from(user.preferences), kind="work")
+    m = _say(session, user, tt, kind, body, {"improvement_id": imp.id, "blast": b, "summary": what},
+             key=f"improvement:{imp.id}", at=when, status=status)
+    session.commit()
+    return m
+
+
 # Refresh --------------------------------------------------------------------------------------
 
 def _settle_stale(session: Session, user: User, tt: TaskType) -> None:
@@ -287,17 +318,13 @@ def post(session: Session, user: User, tt: TaskType, text: str, now: datetime | 
             reply = _say(session, user, tt, "ack", "Rules come from my mentor, so they can check them against how the work is done. "
                                                     "I've noted it; ask them to send it to me.", at=now, status="done")
         else:
-            from app.backtest.runner import create_repredict
-            from app.learning import rules as rules_mod
+            from app.learning import improve
 
-            rule = rules_mod.write(session, tt, user, text)
-            session.flush()
-            agent = session.get(Agent, session.get(Apprenticeship, tt.apprenticeship_id).agent_id)
-            run = create_repredict(session, user, tt, agent, reason=f"new rule: {rule.text[:80]}")
-            engine.on_procedure_change(session, tt, user, f"new rule: {rule.text[:80]}")
-            body = (f"Got it. When that comes up, I'll choose {_label(rule.decision)}. " if rule.decision else "Got it, that's in my rules now. ")
-            reply = _say(session, user, tt, "ack", body + "I'm re-checking my recent answers with it.",
-                         {"rule_id": rule.id, "repredict_run_id": run.id if run else None}, at=now, status="done")
+            imp = improve.propose(session, tt, user, "add_rule", text=Redactor()(text))
+            decision = session.get(Rule, imp.rule_id).decision
+            body = (f"Got it: when that comes up, choose {_label(decision)}. " if decision else "Got it. ")
+            reply = _say(session, user, tt, "ack", body + "Before I use it, I'm testing it on past cases to see what it changes.",
+                         {"rule_id": imp.rule_id, "improvement_id": imp.id}, at=now, status="done")
     elif kind == "status":
         body, stats = _standup(session, user, tt, now)
         reply = _say(session, user, tt, "standup", body, {"stats": stats}, at=now, status="done")
@@ -374,6 +401,22 @@ def reply(session: Session, user: User, message_id: str, action: str, value: str
 
             save_answers(session, user, p["team"], {p["key"]: Redactor()(value)})
             said.append(_say(session, user, tt, "ack", "Thanks, I've written that into my notes for the handbook.", at=now, status="done"))
+    elif action == "confirm" and m.kind == "improvement":
+        if user.role not in MENTOR_ROLES:
+            raise PermissionError("only the mentor can change how Newt works")
+        from app.learning import improve
+
+        imp = session.get(Improvement, p["improvement_id"])
+        try:
+            if value == "yes":
+                improve.promote(session, user, imp, keep_anyway=True)  # they've seen the cases it changes
+                said.append(_say(session, user, tt, "ack", "Done, I'm using it from now on, and re-checking my recent answers with it.",
+                                 at=now, status="done"))
+            else:
+                improve.reject(session, user, imp)
+                said.append(_say(session, user, tt, "ack", "Dropped. I'll keep working the way I was.", at=now, status="done"))
+        except improve.ImproveError as exc:
+            said.append(_say(session, user, tt, "ack", f"I couldn't: {exc}", at=now, status="done"))
     elif action == "confirm" and p.get("type") == "initiative":
         from app.outcomes import insights
 
@@ -385,16 +428,12 @@ def reply(session: Session, user: User, message_id: str, action: str, value: str
         if user.role not in MENTOR_ROLES:
             raise PermissionError("only the mentor can confirm how the team decides")
         if value == "yes":
-            from app.backtest.runner import create_repredict
-            from app.learning import rules as rules_mod
+            from app.learning import improve
 
-            rule = rules_mod.write(session, tt, user, p["text"])
-            session.flush()
-            agent = session.get(Agent, session.get(Apprenticeship, tt.apprenticeship_id).agent_id)
-            create_repredict(session, user, tt, agent, reason=f"confirmed exception: {rule.text[:80]}")
-            engine.on_procedure_change(session, tt, user, f"confirmed exception: {rule.text[:80]}")
-            said.append(_say(session, user, tt, "ack", "Thank you. It's a rule now, with its evidence, and I'm re-checking my recent answers.",
-                             {"rule_id": rule.id}, at=now, status="done"))
+            imp = improve.propose(session, tt, user, "add_rule", text=p["text"], signal="exception",
+                                  targets=p.get("case_ids", []))
+            said.append(_say(session, user, tt, "ack", "Thank you. I'm testing it on past cases first, then it becomes a rule.",
+                             {"rule_id": imp.rule_id, "improvement_id": imp.id}, at=now, status="done"))
         else:
             said.append(_say(session, user, tt, "ack", "Understood, I won't treat that as a rule.", at=now, status="done"))
     elif action == "sign":

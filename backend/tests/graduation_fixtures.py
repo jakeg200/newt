@@ -74,3 +74,30 @@ def push(ctx, body: dict) -> dict:
 def mentor_decides(ctx, items: list[dict], at: datetime | None = None) -> dict:
     """The mentor's real decisions on live items, as the source system reports them."""
     return push(ctx, {"actions": mentor_actions(items, at)})
+
+
+def run_change_tests(session) -> list:
+    """Run the queued change replays (blast radius) and nothing else, as the worker would."""
+    from app.learning.improve import execute
+    from app.models import Job
+
+    done = []
+    for job in list(session.scalars(select(Job).where(Job.type == "improvement_replay", Job.status == "queued"))):
+        job.status = "done"
+        session.commit()
+        done.append(execute(session, job.payload["improvement_id"]))
+    return done
+
+
+def go_live(session, client, headers: dict) -> list:
+    """Test the queued changes, and keep any that changed past cases (the mentor saw them and said yes)."""
+    from app.models import Improvement
+
+    out = []
+    for imp in run_change_tests(session):
+        if imp.status == "ready":
+            r = client.post(f"/improvements/{imp.id}/promote", json={"keep_anyway": True}, headers=headers)
+            assert r.status_code == 200, r.text
+        session.expire_all()
+        out.append(session.get(Improvement, imp.id))
+    return out

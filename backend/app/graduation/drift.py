@@ -8,7 +8,6 @@ the graduation record was; a graduated task type then goes back to shadow.
 from datetime import timedelta
 from typing import Any
 
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.agents.context import ContextBuilder, utc

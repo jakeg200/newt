@@ -226,14 +226,17 @@ def infer(session: Session, task_type: TaskType, user: User, provider: Provider 
     return rules
 
 
-def write(session: Session, task_type: TaskType, user: User, text: str, example_case_id: str | None = None) -> Rule:
-    """A rule the mentor wrote: active at once, owned by the mentor."""
+def write(session: Session, task_type: TaskType, user: User | None, text: str, example_case_id: str | None = None,
+          status: str = "active") -> Rule:
+    """A rule the mentor wrote, owned by the mentor. Normally it waits in "testing" (no agent sees it) until its replay
+    shows what it does to past cases (`learning/improve.py`)."""
     task = TaskTypeConfig.model_validate(task_type.config)
     rule = Rule(apprenticeship_id=task_type.apprenticeship_id, text=text.strip(), decision=parse(text, task).decision,
-                supporting_case_ids=[example_case_id] if example_case_id else [], source="mentor", status="active",
-                stats={"method": "mentor"}, created_by=user.id)
+                supporting_case_ids=[example_case_id] if example_case_id else [], source="mentor", status=status,
+                stats={"method": "mentor"}, created_by=user.id if user else None)
     session.add(rule)
-    bump_version(session, task_type.apprenticeship_id)
+    if status == "active":
+        bump_version(session, task_type.apprenticeship_id)
     return rule
 
 

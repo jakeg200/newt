@@ -9,7 +9,7 @@ from app.agents.output import PredictionResult
 from app.learning import judgement
 from app.models import Apprenticeship, Lesson, Rule, TaskType
 
-from tests.graduation_fixtures import backtest, setup_team
+from tests.graduation_fixtures import backtest, go_live, setup_team
 
 ALWAYS_ON = {"start": "00:00", "end": "23:59", "workdays": [0, 1, 2, 3, 4, 5, 6], "questions_per_day": 10}
 
@@ -36,7 +36,9 @@ def team(client, session):
 
 def test_ledger_separates_written_and_unwritten_with_evidence(team, client, session):
     client.post("/rules", json={"task_type_id": team["tt"], "text": 'When an item mentions "units", choose query supplier.'}, headers=team["mentor"])
+    go_live(session, client, team["mentor"])
     led = client.get(f"/task-types/{team['tt']}/judgement", headers=team["manager"]).json()
+    assert led["changes"][0]["status"] == "promoted" and led["changes"][0]["sentence"]
     rule = next(u for u in led["unwritten"] if '"units"' in u["text"])
     assert rule["learned"] == "told by the mentor" and rule["coverage"] > 10 and rule["passes"] is True
     assert led["decisions"] > 100 and 0 < led["explicit_share"] < 1
@@ -52,14 +54,19 @@ def test_exceptions_are_mined_from_mistakes_and_confirmed_by_the_mentor(team, cl
     r = client.post(f"/messages/{q['id']}/reply", json={"action": "confirm", "value": "yes"}, headers=team["mentor"])
     assert r.status_code == 200, r.text
     session.expire_all()
-    assert session.scalar(select(Rule).where(Rule.text == q["payload"]["text"])) is not None
+    rule = session.scalar(select(Rule).where(Rule.text == q["payload"]["text"]))
+    assert rule is not None and rule.status == "testing"  # tested on past cases before it's used
+    go_live(session, client, team["mentor"])
+    session.expire_all()
+    assert session.get(Rule, rule.id).status == "active"
     assert session.get(Apprenticeship, tt.apprenticeship_id).rules_version > version
     assert client.post(f"/messages/{q['id']}/reply", json={"action": "confirm", "value": "yes"}, headers=team["manager"]).status_code == 404  # not theirs
 
 
-def test_conflicting_rules_are_flagged(team, client):
+def test_conflicting_rules_are_flagged(team, client, session):
     for text in ('When an item mentions "units", choose query supplier.', 'When an item mentions "units", choose escalate.'):
         client.post("/rules", json={"task_type_id": team["tt"], "text": text}, headers=team["mentor"])
+    go_live(session, client, team["mentor"])
     led = client.get(f"/task-types/{team['tt']}/judgement", headers=team["mentor"]).json()
     assert led["conflicts"] and led["conflicts"][0]["cases"] >= 2
 

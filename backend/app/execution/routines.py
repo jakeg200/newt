@@ -68,7 +68,7 @@ def follow_up_days(session: Session, tt: TaskType, decision: str | None) -> int 
     return r.get("follow_up_days") if r else None
 
 
-def approve(session: Session, user: User, tt: TaskType, decision: str, steps: list[str], follow_up: int | None) -> dict[str, Any]:
+def validate(tt: TaskType, decision: str, steps: list[str], follow_up: int | None) -> TaskTypeConfig:
     task = TaskTypeConfig.model_validate(tt.config)
     if decision not in task.decision:
         raise RoutineError(f"decision must be one of {task.decision}")
@@ -77,6 +77,18 @@ def approve(session: Session, user: User, tt: TaskType, decision: str, steps: li
         raise RoutineError(f"{', '.join(unknown)} isn't allowed for this role")
     if follow_up is not None and not 1 <= follow_up <= 60:
         raise RoutineError("follow-up must be between 1 and 60 days")
+    return task
+
+
+def is_live(session: Session, tt: TaskType, decision: str) -> bool:
+    """An approved routine Newt is already working by: changing it changes live work, so it's tested first."""
+    approved = (session.get(Apprenticeship, tt.apprenticeship_id).settings or {}).get("routines", {}).get(tt.id, {})
+    return decision in approved and tt.status in ("supervised", "autonomous")
+
+
+def approve(session: Session, user: User, tt: TaskType, decision: str, steps: list[str], follow_up: int | None,
+            recertify: bool = True) -> dict[str, Any]:
+    task = validate(tt, decision, steps, follow_up)
     app_ = session.get(Apprenticeship, tt.apprenticeship_id)
     settings = dict(app_.settings or {})
     routines = {k: dict(v) for k, v in settings.get("routines", {}).items()}
@@ -86,7 +98,7 @@ def approve(session: Session, user: User, tt: TaskType, decision: str, steps: li
                       "version": (previous or {}).get("version", 0) + 1, "approved_by": user.id, "approved_at": utcnow().isoformat()}
     routines[tt.id] = mine
     app_.settings = {**settings, "routines": routines}
-    if previous and tt.status in ("supervised", "autonomous"):
+    if recertify and previous and tt.status in ("supervised", "autonomous"):
         from app.graduation.engine import on_procedure_change
 
         on_procedure_change(session, tt, user, f"routine changed: {decision}")

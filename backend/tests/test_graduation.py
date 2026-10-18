@@ -10,7 +10,7 @@ from app.agents import registry
 from app.graduation import engine
 from app.models import ActionLog, Audit, BacktestRun, Case, GraduationEvent, Prediction, TaskType, utcnow
 
-from tests.graduation_fixtures import PatternAgent, backtest, drain, live_items, mentor_decides, push, setup_team
+from tests.graduation_fixtures import PatternAgent, backtest, drain, live_items, mentor_decides, push, run_change_tests, setup_team
 
 
 @pytest.fixture
@@ -174,6 +174,9 @@ def test_a_rule_change_triggers_reprobation_when_graduated(team, session, client
     before = session.scalar(select(func.count()).select_from(BacktestRun))
     client.post("/rules", json={"task_type_id": tt.id, "text": 'When an item mentions "credit note", choose query supplier.'},
                 headers=team["mentor"])
+    assert session.scalar(select(func.count()).select_from(BacktestRun)) == before  # tested first, not live yet
+    [imp] = run_change_tests(session)
+    assert imp.status == "promoted" and imp.blast["broke"] == 0  # the mentor's rule broke nothing, so it went live
     kinds = [r.params.get("kind") for r in session.scalars(select(BacktestRun).order_by(BacktestRun.created_at))][before:]
     assert set(kinds) == {"repredict", "reprobation"}
 

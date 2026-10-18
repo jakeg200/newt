@@ -454,3 +454,28 @@ class Job(Base):
     error: Mapped[str | None] = mapped_column(Text)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class Improvement(Base):
+    """A change to how Newt works (a rule, a routine), tested on past cases before it goes live.
+
+    The replay's result is the blast radius: which past cases the change fixes, which it breaks, which it moves. A
+    mentor's own change goes live by itself when it breaks nothing; anything else waits for the mentor."""
+
+    __tablename__ = "improvements"
+    id: Mapped[str] = pk()
+    task_type_id: Mapped[str] = fk("task_types.id")
+    kind: Mapped[str] = mapped_column(String(20))  # add_rule | edit_rule | retire_rule | activate_rule | routine
+    rule_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("rules.id"))
+    candidate: Mapped[dict] = mapped_column(Json, default=dict)  # new text, routine steps, target case ids
+    summary: Mapped[str] = mapped_column(Text, default="")
+    source: Mapped[str] = mapped_column(String(20), default="mentor")  # mentor | newt
+    signal: Mapped[str] = mapped_column(String(40), default="taught")  # taught | exception | inferred | routine
+    status: Mapped[str] = mapped_column(String(20), default="testing")  # testing | ready | promoted | rejected | failed
+    blast: Mapped[dict] = mapped_column(Json, default=dict)
+    proposed_by: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"))
+    decided_by: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"))
+    repredict_run_id: Mapped[str | None] = mapped_column(String(36))
+    error: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

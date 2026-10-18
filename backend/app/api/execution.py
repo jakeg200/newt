@@ -108,8 +108,17 @@ class RoutineIn(BaseModel):
 
 @router.put("/task-types/{task_type_id}/routines/{decision}")
 def set_routine(task_type_id: str, decision: str, body: RoutineIn, user: User = Depends(mentor), session: Session = Depends(get_session)) -> dict[str, Any]:
+    tt = _tt(session, user, task_type_id)
     try:
-        return routines.approve(session, user, _tt(session, user, task_type_id), decision, body.steps, body.follow_up_days)
+        if routines.is_live(session, tt, decision):  # changing live work: replay the processes first
+            from app.learning import improve
+
+            routines.validate(tt, decision, body.steps, body.follow_up_days)
+            imp = improve.propose(session, tt, user, "routine", decision=decision, steps=body.steps,
+                                  follow_up_days=body.follow_up_days, signal="routine")
+            session.commit()
+            return {**routines.current(session, tt).get(decision, {}), "status": "testing", "improvement": improve.out(imp)}
+        return routines.approve(session, user, tt, decision, body.steps, body.follow_up_days)
     except routines.RoutineError as exc:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)) from exc
 

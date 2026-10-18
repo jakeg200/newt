@@ -21,6 +21,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.agents.context import ContextBuilder, Decided
+from app.learning import improve
 from app.learning.rules import _case_text, label, parse, phrases
 from app.models import Comparison, Handbook, Lesson, Prediction, Rule, TaskType, User
 from app.task_types import TaskTypeConfig
@@ -41,7 +42,8 @@ def rule_evidence(rule_text: str, task: TaskTypeConfig, decided: list[Decided]) 
     precision = round(agree / len(hits), 3) if hits else None
     return {"coverage": len(hits), "share": round(len(hits) / len(decided), 3) if decided else 0.0, "agreement": precision,
             "passes": precision is not None and precision >= TESTED_AT and len(hits) >= 3,
-            "examples": [(d.case.snapshot or {}).get("subject", "") for d in hits[:3]]}
+            "examples": [(d.case.snapshot or {}).get("subject", "") for d in hits[:3]],
+            "case_ids": [d.case.id for d in hits[:20]]}
 
 
 def exceptions(session: Session, tt: TaskType, decided: list[Decided] | None = None) -> list[dict[str, Any]]:
@@ -115,12 +117,14 @@ def ledger(session: Session, tt: TaskType) -> dict[str, Any]:
              if lesson.case_id in builder.cases][-20:]
     governed = set()
     for r in unwritten:
+        if r["status"] != "active":
+            continue  # only rules Newt actually uses explain decisions
         p = parse(r["text"], task)
         governed |= {d.case.id for d in decided if p.matches(_case_text(d))}
     return {"written": written, "unwritten": unwritten, "notes": notes, "exceptions": exceptions(session, tt, decided),
             "conflicts": conflicts(rules, task, decided), "decisions": len(decided),
             "explicit_share": round(len(governed) / len(decided), 3) if decided else 0.0,
-            "handbook_version": hb.version if hb else None}
+            "handbook_version": hb.version if hb else None, "changes": improve.log_of(session, tt, 30)}
 
 
 def markdown(tt: TaskType, led: dict[str, Any], intern: str) -> str:

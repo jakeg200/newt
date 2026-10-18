@@ -13,9 +13,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.agents.context import utc
-from app.backtest.runner import create_repredict, latest_backtest
-from app.learning import rules as rules_mod
-from app.models import (Agent, Apprenticeship, BacktestRun, Case, Comparison, Connection, HumanAction, Lesson,
+from app.backtest.runner import latest_backtest
+from app.models import (BacktestRun, Case, Comparison, Connection, HumanAction, Lesson,
                         Prediction, Rule, TaskType, User)
 
 UNSURE_BELOW = 0.7
@@ -134,21 +133,17 @@ def record_lesson(session: Session, user: User, prediction_id: str, attribution:
     comp.excluded = attribution == "mentor_changed"
 
     effect = EFFECTS[attribution]
-    repredict = None
+    improvement = None
     if rule_text and rule_text.strip():
-        rule = rules_mod.write(session, task_type, user, rule_text, example_case_id=case.id)
-        session.flush()
-        lesson.rule_id = rule.id
-        agent = session.get(Agent, session.get(Apprenticeship, task_type.apprenticeship_id).agent_id)
-        repredict = create_repredict(session, user, task_type, agent, reason=f"new rule: {rule.text[:80]}")
-        from app.graduation.engine import on_procedure_change
+        from app.learning import improve
 
-        on_procedure_change(session, task_type, user, f"new rule: {rule.text[:80]}")
-        effect += " Your rule is active; re-predicting your backlog now."
+        improvement = improve.propose(session, task_type, user, "add_rule", text=rule_text, signal="lesson", targets=[case.id])
+        lesson.rule_id = improvement.rule_id
+        effect += " Your rule is being tested on past cases; it goes live if it breaks nothing, otherwise I'll show you what it changes."
     session.commit()
     remaining = queue(session, task_type, limit=0)["total"]
     return {"lesson_id": lesson.id, "effect": effect, "remaining": remaining, "reply_ok": reply_ok,
-            "repredict_run_id": repredict.id if repredict else None, "elapsed_ms": int((time.monotonic() - started) * 1000)}
+            "improvement_id": improvement.id if improvement else None, "elapsed_ms": int((time.monotonic() - started) * 1000)}
 
 
 def summary(session: Session, task_type: TaskType) -> dict[str, Any]:
