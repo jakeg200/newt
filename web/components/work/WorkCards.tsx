@@ -1,0 +1,114 @@
+"use client";
+
+import { useState } from "react";
+import { api, type AuditCard, type DraftCard } from "@/lib/api";
+
+/* Cards for work waiting on the mentor: supervised drafts and blind audits. */
+
+export const label = (s: string | null | undefined) => (s ? s.replace(/_/g, " ") : "–");
+
+export function Inputs({ inputs }: { inputs: Record<string, string> }) {
+  return (
+    <>
+      {Object.entries(inputs).filter(([, v]) => v).map(([k, v]) => (
+        <p key={k} className="text-sm text-stone-700"><span className="text-xs text-stone-500">{label(k)}: </span>{v}</p>
+      ))}
+    </>
+  );
+}
+
+export function Draft({ card, decisions, onDone }: { card: DraftCard; decisions: string[]; onDone: (msg: string) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [decision, setDecision] = useState(card.agent.decision);
+  const replyKey = Object.keys(card.agent.text_outputs ?? {})[0];
+  const [reply, setReply] = useState(replyKey ? card.agent.text_outputs[replyKey] : "");
+  const [busy, setBusy] = useState(false);
+  const blocked = card.actions.filter((a) => a.status === "blocked");
+
+  async function act(fn: () => Promise<string>) {
+    setBusy(true);
+    try {
+      onDone(await fn());
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <li className="space-y-2 rounded-3xl border border-stone-200 bg-white p-4">
+      <p className="font-medium">{card.case.subject || card.case.id}</p>
+      <Inputs inputs={card.case.inputs} />
+      <div className="rounded-md bg-stone-50 p-3 text-sm">
+        <p>
+          The intern would <span className="font-medium">{label(card.agent.decision)}</span>
+          {card.confidence !== null && <span className="text-stone-500"> ({Math.round(card.confidence * 100)}% sure)</span>}
+        </p>
+        {replyKey && card.agent.text_outputs[replyKey] && !editing && (
+          <p className="mt-1 whitespace-pre-wrap">{card.agent.text_outputs[replyKey]}</p>
+        )}
+        {blocked.length > 0 && (
+          <p className="mt-1 text-xs text-stone-500">Not allowed, so left out: {blocked.map((b) => `${b.action} (${b.policy.reasons.join("; ")})`).join(", ")}</p>
+        )}
+      </div>
+      {editing && (
+        <div className="space-y-2">
+          <select value={decision} onChange={(e) => setDecision(e.target.value)} className="rounded-md border border-stone-300 px-2 py-1 text-sm">
+            {decisions.map((d) => <option key={d} value={d}>{label(d)}</option>)}
+          </select>
+          {replyKey && <textarea value={reply} onChange={(e) => setReply(e.target.value)} rows={3} className="w-full rounded-md border border-stone-300 px-2 py-1 text-sm" />}
+        </div>
+      )}
+      <div className="flex flex-wrap gap-2">
+        {!editing ? (
+          <>
+            <button type="button" disabled={busy} className="rounded-full bg-brand-600 px-4 py-1.5 text-sm font-medium text-white"
+                    onClick={() => act(async () => { await api.approveDraft(card.prediction_id); return "Approved as drafted."; })}>
+              Approve
+            </button>
+            <button type="button" disabled={busy} className="rounded-full border border-stone-300 bg-white px-4 py-1.5 text-sm"
+                    onClick={() => setEditing(true)}>
+              Edit
+            </button>
+          </>
+        ) : (
+          <>
+            <button type="button" disabled={busy} className="rounded-full bg-brand-600 px-4 py-1.5 text-sm font-medium text-white"
+                    onClick={() => act(async () => {
+                      const r = decision === card.agent.decision
+                        ? await api.approveDraft(card.prediction_id, replyKey ? { text_outputs: { [replyKey]: reply } } : {})
+                        : await api.rejectDraft(card.prediction_id, decision);
+                      return r.status === "rejected" ? "Recorded your decision instead." : "Approved with your edits.";
+                    })}>
+              Save
+            </button>
+            <button type="button" className="rounded-md px-3 py-1.5 text-sm text-stone-600" onClick={() => setEditing(false)}>Cancel</button>
+          </>
+        )}
+      </div>
+    </li>
+  );
+}
+
+export function Audit({ card, decisions, onDone }: { card: AuditCard; decisions: string[]; onDone: (msg: string) => void }) {
+  const [decision, setDecision] = useState(decisions[0]);
+  return (
+    <li className="space-y-2 rounded-3xl border border-stone-200 bg-white p-4">
+      <p className="font-medium">{card.case.subject || card.case.id}</p>
+      <Inputs inputs={card.case.inputs} />
+      <p className="text-xs text-stone-500">The intern already handled this. Decide it yourself; you&apos;ll see its answer after.</p>
+      <form className="flex gap-2" onSubmit={async (e) => {
+        e.preventDefault();
+        const r = await api.submitAudit(card.audit_id, decision);
+        const demoted = r.review?.demoted_to ? ` The task type moved back to ${r.review.demoted_to}.` : "";
+        onDone(r.result === "pass" ? `Audit passed: the intern also chose ${label(r.agent_decision)}.${demoted}`
+          : `Audit failed: the intern chose ${label(r.agent_decision)}.${demoted}`);
+      }}>
+        <select value={decision} onChange={(e) => setDecision(e.target.value)} className="rounded-md border border-stone-300 px-2 py-1 text-sm">
+          {decisions.map((d) => <option key={d} value={d}>{label(d)}</option>)}
+        </select>
+        <button type="submit" className="rounded-full bg-ink px-4 py-1.5 text-sm font-medium text-white">Submit</button>
+      </form>
+    </li>
+  );
+}
+

@@ -6,16 +6,12 @@ import { InternAvatar } from "@/components/InternAvatar";
 import { BRAND } from "@/lib/brand";
 import { useUser } from "@/lib/user";
 
-// Grouped by the intern's journey: onboard it, teach it, graduate it, manage it.
+// Four places, around what a person needs, not the machinery. Detailed screens live under Setup.
 const NAV = [
-  { href: "/orientation", label: "Orientation" },
-  { href: "/capture", label: "Capture" },
-  { href: "/today", label: "Today" },
-  { href: "/learned", label: "Learned" },
-  { href: "/backtest", label: "Backtest" },
-  { href: "/board", label: "Task board" },
-  { href: "/autonomy", label: "Autonomy" },
-  { href: "/manager", label: "Manager" },
+  { href: "/", label: "Home", match: ["/"] },
+  { href: "/inbox", label: "Needs you", match: ["/inbox", "/today", "/autonomy"] },
+  { href: "/report", label: "Report card", match: ["/report", "/board"] },
+  { href: "/setup", label: "Setup", match: ["/setup", "/orientation", "/capture", "/backtest", "/learned", "/manager"] },
 ];
 
 export function Header() {
@@ -31,7 +27,7 @@ export function Header() {
         </Link>
         <nav className="order-3 -mx-1 flex w-full gap-1 overflow-x-auto text-sm lg:order-none lg:w-auto" aria-label="Main">
           {NAV.map((item) => {
-            const on = pathname.startsWith(item.href);
+            const on = item.match.some((m) => (m === "/" ? pathname === "/" : pathname.startsWith(m)));
             return (
               <Link
                 key={item.href}
