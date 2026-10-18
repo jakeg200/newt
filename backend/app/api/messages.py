@@ -80,7 +80,12 @@ class PrefsIn(BaseModel):
 
 @router.patch("/me/preferences")
 def set_preferences(body: PrefsIn, user: User = Depends(current_user), session: Session = Depends(get_session)) -> dict[str, Any]:
+    from app import channels
+
+    if body.channel and not channels.available(session, user.org_id).get(body.channel):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, f"{body.channel.capitalize()} isn't connected for your organisation yet")
     merged = {**etiquette.prefs_from(user.preferences).as_dict(), **body.model_dump(exclude_none=True)}
-    user.preferences = etiquette.prefs_from(merged).as_dict()  # validated and normalised
+    linked = {k: v for k, v in (user.preferences or {}).items() if k in channels.IDENTITY_KEYS}  # who they are in Slack/Teams
+    user.preferences = {**etiquette.prefs_from(merged).as_dict(), **linked}  # validated and normalised
     session.commit()
     return user.preferences

@@ -129,8 +129,12 @@ def _tell(session: Session, user: User, tt: TaskType, kind: str, body: str, payl
     from app.colleague import etiquette
 
     when = etiquette.deliver_at(utcnow(), etiquette.prefs_from(user.preferences), kind="work")
-    session.add(Message(task_type_id=tt.id, user_id=user.id, direction="newt", kind=kind, body=body, payload=payload,
-                        dedupe_key=key, deliver_after=when))
+    m = Message(task_type_id=tt.id, user_id=user.id, direction="newt", kind=kind, body=body, payload=payload,
+                dedupe_key=key, deliver_after=when)
+    session.add(m)
+    from app import channels
+
+    channels.queue_delivery(session, m, user)
 
 
 def _fail(session: Session, row: ActionLog, reason: str) -> None:

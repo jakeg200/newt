@@ -3,6 +3,8 @@
     python -m app.admin create-org "Acme Ltd"
     python -m app.admin add-user "Acme Ltd" sarah@acme.com "Sarah K" mentor
     python -m app.admin add-team "Acme Ltd" accounts_payable sarah@acme.com ../task_types/invoice_mismatch.json
+    python -m app.admin connect-slack "Acme Ltd" T0123ABCD          (bot token read from SLACK_BOT_TOKEN)
+    python -m app.admin connect-teams "Acme Ltd" <tenant id>
     python -m app.admin list
 
 Each person signs in with Supabase using the email given here; roles are mentor, manager or admin.
@@ -100,6 +102,25 @@ def hire(session: Session, org_name: str, pack_id: str, mentor_email: str | None
     return tt
 
 
+def connect_chat(session: Session, org_name: str, provider: str, external_id: str, token: str | None = None):
+    """Link an org's Slack workspace or Teams tenant (the OAuth button in Setup does the same for Slack)."""
+    from app import crypto
+    from app.models import ChatInstall
+
+    if provider not in ("slack", "teams"):
+        raise AdminError("provider must be slack or teams")
+    if provider == "slack" and not token:
+        raise AdminError("set SLACK_BOT_TOKEN to the workspace's bot token (xoxb-…)")
+    org = _org(session, org_name)
+    inst = session.scalar(select(ChatInstall).where(ChatInstall.org_id == org.id, ChatInstall.provider == provider))
+    inst = inst or ChatInstall(org_id=org.id, provider=provider, external_id=external_id, config={})
+    inst.external_id = external_id
+    inst.encrypted_token = crypto.encrypt(token) if token else None
+    session.add(inst)
+    session.commit()
+    return inst
+
+
 def main(argv: list[str] | None = None) -> None:
     from app.db import get_session
 
@@ -118,6 +139,10 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("team")
     p.add_argument("mentor_email")
     p.add_argument("config", type=Path)
+    for name, what in (("connect-slack", "Slack team id"), ("connect-teams", "Teams tenant id")):
+        p = sub.add_parser(name)
+        p.add_argument("org")
+        p.add_argument("external_id", help=what)
     sub.add_parser("list")
     args = parser.parse_args(argv)
 
@@ -131,6 +156,12 @@ def main(argv: list[str] | None = None) -> None:
         elif args.cmd == "add-team":
             tt = add_team(session, args.org, args.team, args.mentor_email, load_task_type(args.config))
             print(f"added task type {tt.name!r} to team {args.team}")
+        elif args.cmd in ("connect-slack", "connect-teams"):
+            import os
+
+            provider = args.cmd.split("-")[1]
+            connect_chat(session, args.org, provider, args.external_id, os.environ.get("SLACK_BOT_TOKEN") if provider == "slack" else None)
+            print(f"connected {provider} for {args.org}")
         else:
             for org in session.scalars(select(Org).order_by(Org.name)):
                 print(json.dumps({"org": org.name, "synthetic": org.is_synthetic,

@@ -12,6 +12,7 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app import channels
 from app.agents.context import utc
 from app.capture.redact import Redactor
 from app.colleague import assist, career, curiosity, etiquette
@@ -44,7 +45,7 @@ def _label(s: Any) -> str:
 def out(m: Message) -> dict[str, Any]:
     return {"id": m.id, "direction": m.direction, "kind": m.kind, "body": m.body, "payload": m.payload, "status": m.status,
             "urgency": m.urgency, "at": utc(m.deliver_after) if m.direction == "newt" else utc(m.created_at),
-            "answered_at": m.answered_at}
+            "answered_at": m.answered_at, "channel": m.channel}
 
 
 def _exists(session: Session, user: User, key: str) -> bool:
@@ -56,6 +57,7 @@ def _say(session: Session, user: User, tt: TaskType, kind: str, body: str, paylo
     m = Message(task_type_id=tt.id, user_id=user.id, direction="newt", kind=kind, body=body, payload=payload or {},
                 dedupe_key=key, deliver_after=at or utcnow(), urgency=urgency, status=status)
     session.add(m)
+    channels.queue_delivery(session, m, user)  # in Slack, Teams or email too, if that's where they read Newt
     return m
 
 
@@ -476,7 +478,7 @@ def reply(session: Session, user: User, message_id: str, action: str, value: str
     if action != "feedback" and m.status == "open":
         m.status = "answered"
     m.answered_at = now
-    m.payload = {**m.payload, "answer": {"action": action, "value": value}}
+    m.payload = {**m.payload, "answer": {"action": action, "value": Redactor()(value) if value else value}}  # typed words are redacted
     session.commit()
     return [out(x) for x in [m, *said]]
 

@@ -53,6 +53,12 @@ def _improvement_replay(session: Session, payload: dict) -> object:
     return test_change(session, payload["improvement_id"])
 
 
+def _deliver_message(session: Session, payload: dict) -> object:
+    from app.channels import deliver
+
+    return deliver(session, payload["message_id"])
+
+
 HANDLERS: dict[str, Callable[[Session, dict], object]] = {
     "backtest": lambda session, payload: execute(session, payload["run_id"]),
     "live_predict": _live_predict,
@@ -61,6 +67,7 @@ HANDLERS: dict[str, Callable[[Session, dict], object]] = {
     "follow_up": _follow_up,
     "process_replay": _process_replay,
     "improvement_replay": _improvement_replay,
+    "deliver_message": _deliver_message,
 }
 
 

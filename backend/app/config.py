@@ -37,6 +37,22 @@ class Settings(BaseSettings):
     web_url: str = "http://localhost:3000"
     google_client_id: str | None = None
     google_client_secret: str | None = None
+    # Where Newt reaches people besides the app (docs/NEEDS_JAKE.md). Each channel is off until configured.
+    slack_client_id: str | None = None
+    slack_client_secret: str | None = None
+    slack_signing_secret: str | None = None
+    slack_api_url: str = "https://slack.com/api"
+    teams_app_id: str | None = None
+    teams_app_password: str | None = None
+    teams_token_url: str = "https://login.microsoftonline.com/botframework.com/oauth2/v2.0/token"
+    teams_openid_url: str = "https://login.botframework.com/v1/.well-known/openidconfiguration"
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_user: str | None = None
+    smtp_password: str | None = None
+    smtp_from: str = "Newt <newt@example.com>"
+    inbound_email_domain: str | None = None  # replies go to newt+<token>@this domain
+    inbound_email_secret: str | None = None  # the inbound-parse webhook sends it in X-Newt-Inbound
 
     def secret(self) -> bytes:
         if self.env != "dev" and self.app_secret == "dev-only-insecure-secret":

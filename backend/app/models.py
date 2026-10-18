@@ -356,6 +356,8 @@ class Message(Base):
     deliver_after: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     answered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    channel: Mapped[str | None] = mapped_column(String(10))  # where it was delivered besides the app: email | slack | teams
+    external_ref: Mapped[str | None] = mapped_column(String(200), index=True)  # that channel's id for it (no content)
 
 
 class GraduationEvent(Base):
@@ -479,3 +481,18 @@ class Improvement(Base):
     error: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class ChatInstall(Base):
+    """Newt installed in an org's Slack workspace or Teams tenant. The bot token is encrypted; config holds only ids
+    (workspace, tenant, bot)."""
+
+    __tablename__ = "chat_installs"
+    id: Mapped[str] = pk()
+    org_id: Mapped[str] = fk("orgs.id")
+    provider: Mapped[str] = mapped_column(String(10))  # slack | teams
+    external_id: Mapped[str] = mapped_column(String(100), index=True)  # Slack team id, Teams tenant id
+    encrypted_token: Mapped[str | None] = mapped_column(Text)
+    config: Mapped[dict] = mapped_column(Json, default=dict)
+    installed_by: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
