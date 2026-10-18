@@ -56,6 +56,23 @@ class BankQuestion(BaseModel):
     question: str = Field(min_length=5, max_length=300)
 
 
+KPI_METRICS = ("completed_by_newt", "completed_total", "share_by_newt", "median_hours_to_complete", "backlog_open",
+               "hours_returned", "value")
+
+
+class KpiSpec(BaseModel):
+    """A measure of how the role is going, with an optional weekly target. Metrics are generic; which ones matter
+    for a role, and the targets, live here (and the manager can override targets)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    metric: Literal["completed_by_newt", "completed_total", "share_by_newt", "median_hours_to_complete", "backlog_open",
+                    "hours_returned", "value"]
+    target: float | None = None
+    direction: Literal["up", "down"] = "up"
+    label: str | None = Field(default=None, max_length=80)
+
+
 class TaskTypeConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -71,6 +88,17 @@ class TaskTypeConfig(BaseModel):
     min_cases: int = Field(ge=1)
     capture: CaptureConfig = Field(default_factory=CaptureConfig)
     question_bank: list[BankQuestion] = Field(default_factory=list)
+    follow_up_days: dict[str, int] = Field(default_factory=dict)  # decision -> days to wait before chasing
+    kpis: list[KpiSpec] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _follow_ups_match_decisions(self) -> "TaskTypeConfig":
+        for decision, days in self.follow_up_days.items():
+            if decision not in self.decision:
+                raise ValueError(f"follow_up_days decision {decision!r} is not one of {self.decision}")
+            if not 1 <= days <= 60:
+                raise ValueError("follow_up_days must be between 1 and 60")
+        return self
 
     @model_validator(mode="after")
     def _capture_matches_task(self) -> "TaskTypeConfig":

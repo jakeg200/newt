@@ -26,6 +26,13 @@
     ],
     "reply_text_output": "supplier_email"
   },
+  "follow_up_days": {"query_supplier": 3},
+  "kpis": [
+    {"metric": "completed_by_newt", "label": "Invoices finished by Newt"},
+    {"metric": "share_by_newt", "target": 0.5, "label": "Share of invoices Newt finished"},
+    {"metric": "median_hours_to_complete", "target": 24, "direction": "down", "label": "Hours to clear an invoice"},
+    {"metric": "hours_returned", "label": "Hours given back"}
+  ],
   "question_bank": [
     {"key": "tolerance", "question": "How big a price difference do you let through without querying the supplier?"},
     {"key": "key_accounts", "question": "Which suppliers are key accounts, and what do you do differently for them?"},

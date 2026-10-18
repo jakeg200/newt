@@ -5,8 +5,9 @@ import { useCallback, useEffect, useState } from "react";
 import { STAGE_MOOD } from "@/components/InternAvatar";
 import { Proposal } from "@/components/board/Proposal";
 import { TaskTypeTabs } from "@/components/TaskTypeTabs";
-import { Journey, PageHeader, stageLabel } from "@/components/ui";
-import { api, type AgentInfo, type BoardRow, type ManagerTeam } from "@/lib/api";
+import { CareerLadder, OutcomeCard } from "@/components/outcomes/OutcomeCard";
+import { PageHeader } from "@/components/ui";
+import { api, type AgentInfo, type BoardRow, type Career, type ManagerTeam, type Outcomes } from "@/lib/api";
 import { useTaskTypes } from "@/lib/useTaskTypes";
 
 const pct = (x: number | null | undefined, d = 0) => (x === null || x === undefined ? "–" : `${(x * 100).toFixed(d)}%`);
@@ -26,6 +27,8 @@ export default function ReportCardPage() {
   const [rows, setRows] = useState<BoardRow[]>([]);
   const [agents, setAgents] = useState<AgentInfo[]>([]);
   const [teams, setTeams] = useState<ManagerTeam[]>([]);
+  const [outcomes, setOutcomes] = useState<Outcomes | null>(null);
+  const [career, setCareer] = useState<Career | null>(null);
 
   const load = useCallback(async () => {
     const [b, a, m] = await Promise.all([api.board(), api.agents(), api.managerDashboard().catch(() => ({ teams: [] as ManagerTeam[] }))]);
@@ -37,6 +40,12 @@ export default function ReportCardPage() {
   useEffect(() => {
     if (user) load().catch(() => {});
   }, [user, load]);
+
+  useEffect(() => {
+    if (!taskTypeId) return;
+    api.outcomes(taskTypeId).then(setOutcomes).catch(() => {});
+    api.career(taskTypeId).then(setCareer).catch(() => {});
+  }, [taskTypeId]);
 
   if (!user || !taskType) return <p className="text-sm text-stone-500">{error ?? "Loading…"}</p>;
   const intern = taskType.intern_name;
@@ -56,14 +65,17 @@ export default function ReportCardPage() {
         aside={<TaskTypeTabs taskTypes={taskTypes} value={taskTypeId} onChange={setTaskTypeId} />}
       />
 
-      <div className="rounded-3xl border border-stone-200 bg-white p-5 animate-rise">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 className="text-lg font-extrabold">{stageLabel(row.status)}</h2>
-          {ready && <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">Ready for the next stage</span>}
-        </div>
-        <Journey status={row.status} />
+      <div className="grid gap-4 lg:grid-cols-[1.6fr_1fr] animate-rise">
+        {outcomes && <OutcomeCard o={outcomes} intern={intern} />}
+        {career && outcomes && <CareerLadder career={career} promotions={outcomes.promotions} />}
       </div>
+      {ready && (
+        <p className="rounded-2xl bg-emerald-50 px-4 py-2.5 text-sm font-medium text-emerald-900 ring-1 ring-emerald-200">
+          {intern} has earned a review for the next step. See the evidence below.
+        </p>
+      )}
 
+      <h2 className="pt-2 text-2xl font-extrabold">Why you can trust these numbers</h2>
       <div className="stagger grid gap-3 sm:grid-cols-3">
         <Tile big={pct(ev.agreement_rate)} label="In line with your team" note={`on ${ev.cases} past cases, after your lessons`} />
         <Tile big={pct(ev.ucb, 1)} good={ev.ucb <= ev.alpha} label="Wrong at most, when sure"

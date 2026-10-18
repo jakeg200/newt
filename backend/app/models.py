@@ -214,6 +214,7 @@ class Case(Base):
     match_keys: Mapped[dict] = mapped_column(Json, default=dict)  # hashed ids and reference tokens, no content
     is_backtest: Mapped[bool] = mapped_column(Boolean, default=False)
     status: Mapped[str] = mapped_column(String(20), default="open")  # open | decided
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # every action confirmed done
 
 
 class BacktestRun(Base):
@@ -410,6 +411,31 @@ class ActionLog(Base):
     decided_by: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     executed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Doing the work in the firm's systems: queued -> running -> done | failed. None means nothing to run.
+    exec_status: Mapped[str | None] = mapped_column(String(20))
+    destination_id: Mapped[str | None] = mapped_column(String(36))
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    external_ref: Mapped[str | None] = mapped_column(String(200))
+    result: Mapped[dict] = mapped_column(Json, default=dict)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class Destination(Base):
+    """Where Newt does the work: a firm's system (or Zapier, Make, n8n) that receives signed actions referring to the
+    source item, carries them out, and confirms. Newt never holds the real recipients; the system does."""
+
+    __tablename__ = "destinations"
+    id: Mapped[str] = pk()
+    org_id: Mapped[str] = fk("orgs.id")
+    task_type_id: Mapped[str] = fk("task_types.id")
+    name: Mapped[str] = mapped_column(String(200))
+    kind: Mapped[str] = mapped_column(String(20), default="webhook")
+    url: Mapped[str] = mapped_column(String(500))
+    actions: Mapped[list] = mapped_column(Json, default=list)  # which action types it carries out
+    encrypted_secret: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(20), default="active")  # active | paused
+    last_test: Mapped[dict] = mapped_column(Json, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
 class Job(Base):

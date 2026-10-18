@@ -29,6 +29,12 @@
     ],
     "reply_text_output": "tenant_reply"
   },
+  "follow_up_days": {"ask_for_details": 2},
+  "kpis": [
+    {"metric": "completed_by_newt", "label": "Requests finished by Newt"},
+    {"metric": "median_hours_to_complete", "target": 8, "direction": "down", "label": "Hours to sort a request"},
+    {"metric": "backlog_open", "target": 10, "direction": "down", "label": "Requests waiting"}
+  ],
   "question_bank": [
     {"key": "emergency", "question": "What counts as an emergency here, and who do you call out of hours?"},
     {"key": "contractors", "question": "Which contractors do you prefer for each trade, and when do you avoid one?"},

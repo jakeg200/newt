@@ -9,6 +9,8 @@ import { stageLabel } from "@/components/ui";
 import { api, ApiError, type ChatMessage } from "@/lib/api";
 import { useTaskTypes } from "@/lib/useTaskTypes";
 
+const RANK_TITLE: Record<string, string> = { new_starter: "New starter", intern: "Intern", junior: "Junior", graduate: "Graduate", senior: "Senior" };
+
 const dayLabel = (iso: string) => {
   const d = new Date(iso);
   const today = new Date();
@@ -22,6 +24,8 @@ export default function Conversation() {
   const { user, taskTypes, taskTypeId, setTaskTypeId, taskType, error: ttError } = useTaskTypes();
   const [messages, setMessages] = useState<ChatMessage[] | null>(null);
   const [intern, setIntern] = useState("Newt");
+  const [rank, setRank] = useState<string | null>(null);
+  const [statusLine, setStatusLine] = useState("");
   const [text, setText] = useState("");
   const [typing, setTyping] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,6 +38,8 @@ export default function Conversation() {
     const t = await api.thread(id);
     setIntern(t.intern_name);
     setMessages(t.messages);
+    setRank(t.rank);
+    setStatusLine(t.status_line);
   }, []);
 
   useEffect(() => {
@@ -100,11 +106,17 @@ export default function Conversation() {
             <span className="absolute bottom-2 right-1 h-3.5 w-3.5 rounded-full border-2 border-cream bg-emerald-500" aria-label="online" />
           </div>
           <div>
-            <h1 className="text-3xl leading-tight">{intern}</h1>
-            <p className="text-sm text-stone-500">
-              {taskType.name} · <span className="font-medium text-brand-700">{stageLabel(taskType.status)}</span>
-              {waiting > 0 && <> · <span className="font-medium text-ink">{waiting} waiting on you</span></>}
-            </p>
+            <h1 className="flex items-baseline gap-2 text-3xl leading-tight">
+              {intern}
+              {rank && <span className="rounded-full bg-brand-100 px-2.5 py-0.5 font-sans text-xs font-semibold tracking-normal text-brand-800">{RANK_TITLE[rank] ?? stageLabel(taskType.status)}</span>}
+            </h1>
+            <p className="text-sm text-stone-500">{taskType.name}</p>
+            {statusLine && (
+              <p className="mt-0.5 flex items-center gap-1.5 text-sm font-medium text-ink" aria-live="polite">
+                <span className={`h-2 w-2 rounded-full ${waiting ? "bg-brand-500" : "bg-emerald-500"} animate-pulse`} />
+                {statusLine}
+              </p>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-2">

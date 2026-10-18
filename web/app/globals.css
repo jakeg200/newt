@@ -103,5 +103,5 @@ h1 {
   .stagger > *, .ia-bob, .ia-eyes, .ia-wave, .ia-tail { animation: none; }
   .lift, .lift:hover { transition: none; transform: none; }
   .reveal { opacity: 1; transform: none; transition: none; }
-  .float, .typing-dot { animation: none; }
+  .float, .typing-dot, .animate-pulse { animation: none; }
 }

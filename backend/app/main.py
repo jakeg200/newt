@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.api import backtest, capture, graduation, manager, messages, orientation, teaching
+from app.api import backtest, capture, execution, graduation, manager, messages, orientation, teaching
 from app.auth import current_user
 from app.config import get_settings
 from app.db import get_engine, get_session
@@ -45,6 +45,7 @@ app.include_router(teaching.router)
 app.include_router(graduation.router)
 app.include_router(manager.router)
 app.include_router(messages.router)
+app.include_router(execution.router)
 
 
 @app.get("/health")
@@ -78,6 +79,7 @@ def task_types(user: User = Depends(current_user), session: Session = Depends(ge
     return [
         {"id": t.id, "name": t.name, "team": team, "status": t.status, "tau": t.tau,
          "inputs": t.config.get("inputs", []), "decision": t.config.get("decision", []),
+         "allowed_actions": t.config.get("allowed_actions", []), "hard_rules": t.config.get("hard_rules", []),
          "intern_name": (settings or {}).get("intern_name") or DEFAULT_INTERN_NAME}
         for t, team, settings in rows
     ]

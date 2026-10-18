@@ -52,7 +52,7 @@ def backtest(ctx, session, limit: int = 300) -> dict:
     return ctx["client"].get(f"/backtests/{run['id']}", headers=ctx["mentor"]).json()
 
 
-def drain(session, limit: int = 50) -> None:
+def drain(session, limit: int = 1000) -> None:  # approved work queues an execution job per action
     for _ in range(limit):
         if not run_once(session):
             return

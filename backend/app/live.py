@@ -92,8 +92,12 @@ def predict_cases(session: Session, case_ids: list[str]) -> int:
 
 
 def _act(session: Session, tt: TaskType, task: TaskTypeConfig, case: Case, p: Prediction, mode: str) -> None:
+    from app.execution import routines
+
     snapshot = case.snapshot or {}
-    checked = [(a, policy.check(a, task, snapshot)) for a in policy.plan(task, snapshot, p.output, mode)]
+    steps = routines.steps_for(session, tt, p.output.get("decision"))  # the mentor-approved routine, if there is one
+    planned = [a for a in policy.plan(task, snapshot, p.output, mode) if steps is None or a.type in steps]
+    checked = [(a, policy.check(a, task, snapshot)) for a in planned]
     stopped = [(a, v) for a, v in checked if not v["ok"]]
     if stopped:
         # One blocked action stops the whole case: a status set without its reply would be half done.
@@ -105,11 +109,17 @@ def _act(session: Session, tt: TaskType, task: TaskTypeConfig, case: Case, p: Pr
         reasons = [*hb.get("reasons", []), *(f"the action policy stopped {a.type}: {r}" for a, v in stopped for r in v["reasons"])]
         p.output = {**p.output, "hand_back": {**hb, "hand_back": True, "reasons": reasons}}
         return
+    rows = []
     for action, verdict in checked:
-        status = "executed" if mode == "autonomous" else "pending"
-        session.add(ActionLog(case_id=case.id, prediction_id=p.id, mode=mode, action=action.type, payload=action.params,
-                              policy_check=verdict, status=status, executed_at=utcnow() if status == "executed" else None))
+        status = "executed" if mode == "autonomous" else "pending"  # autonomous: authorised to act alone
+        row = ActionLog(case_id=case.id, prediction_id=p.id, mode=mode, action=action.type, payload=action.params,
+                        policy_check=verdict, status=status)
+        session.add(row)
+        rows.append(row)
     if mode == "autonomous":
+        from app.execution.service import queue
+
+        queue(session, rows)  # carried out in the firm's systems, and only "completed" once confirmed
         case.status = "handled"
         if _audit_sampled(case.id):
             session.add(Audit(case_id=case.id, task_type_id=tt.id, prediction_id=p.id, blind=True))
@@ -209,8 +219,13 @@ def decide_draft(session: Session, user: User, prediction_id: str, *, approve: b
     now = utcnow()
     for row in logs:
         row.status, row.decided_by = status, user.id
-        if approve:
-            row.executed_at = now  # simulated execution
+        if approve and text_outputs is not None and row.action in ("draft_reply", "send_reply"):
+            body = next(iter(text_outputs.values()), row.payload.get("body"))
+            row.payload = {**row.payload, "body": body}  # the mentor's edit is what goes out
+    if approve:
+        from app.execution.service import queue
+
+        queue(session, logs)  # approved work is carried out, then confirmed
     session.add(HumanAction(case_id=case.id, action_type="decision", acted_at=now, source="supervised",
                             source_ref=f"supervised:{p.id}", match_method="explicit",
                             payload={**final, "via": "supervised", "untouched": untouched, **({"note": note} if note else {})}))

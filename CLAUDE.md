@@ -21,6 +21,7 @@ docs/DECISIONS.md; anything only Jake can provide goes in docs/NEEDS_JAKE.md.
 - Load the sample AP policies (API running): `python scripts/upload_samples.py`
 - Regenerate the capture samples (test mailbox, ledger CSVs): `python scripts/make_sample_capture.py`
 - Job worker (production; in dev the API runs jobs itself): `python -m app.worker`
+- Mock company system that receives Newt's actions (demo): `python -m uvicorn scripts.mock_system:app --port 8200`
 - Mock vendor agent for demos: `MOCK_AGENT_SECRET=… python -m uvicorn scripts.mock_agent:app --port 8100`
 - Tests on real Postgres (embedded via pgserver): `TEST_DATABASE=postgres python -m pytest`
 - Whole programme for "Demo Co" against the running API: `python -m demo` (`--stop-before …`, `live N [--decide]`)
@@ -63,6 +64,12 @@ offline drafter (`app/orientation/offline.py`); tests always use `FakeProvider`,
 - Agents never choose actions. Every action goes through `app/actions/policy.py` (`plan` then
   `check`); never execute anything an agent's output names directly. `tests/test_actions.py` holds
   the adversarial test.
+- Newt's actions run only through the policy and an executor (`app/execution/`): queued once allowed (autonomous, or
+  approved), the policy is re-checked when acting, and a case counts as completed only when every action is confirmed.
+  Actions refer to the source item (`case.source_ref`), never to people's real details. Failures hand the case back.
+- Newt's career (new starter → intern → junior → graduate → senior) is earned: stage changes keep the evidence +
+  sign-off gates; senior responsibilities are granted by a manager (`app/colleague/career.py`). KPIs report outcomes
+  and appear in reviews, but never replace the statistical gate.
 - Graduation numbers come only from `app/eval/stats.py`; `tests/test_stats.py` pins the brief's figures.
 - `tests/test_end_to_end.py` runs the whole programme through the API with no database edits; keep it green.
 - Industry-specific demo material goes in `backend/demo/`, never in `app/`.

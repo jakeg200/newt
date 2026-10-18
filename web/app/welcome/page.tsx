@@ -51,7 +51,7 @@ export default function Welcome() {
           </h1>
           <p className="max-w-xl text-lg text-stone-600">
             Newt learns your team&apos;s job the way a person does: it reads the handbook, shadows your experts, practises under
-            supervision, and only works alone once the evidence says it can be trusted.
+            supervision, and earns every promotion on its record, from intern to graduate. Not advice: finished work, in your systems.
           </p>
           <div className="flex flex-wrap gap-3">
             <a href="#pilot" className="lift rounded-full bg-ink px-6 py-3 text-sm font-semibold text-white">Join the pilot</a>

@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ContactPrefs } from "@/components/ContactPrefs";
+import { Destinations } from "@/components/work/Destinations";
+import { Routines } from "@/components/work/Routines";
 import { InternAvatar, type Growth } from "@/components/InternAvatar";
 import { PageHeader } from "@/components/ui";
 import { api, type ManagerTeam } from "@/lib/api";
@@ -29,6 +31,15 @@ export default function SetupPage() {
     <div className="space-y-8">
       <PageHeader title={<>Set up <span className="hl">{intern}</span></>} mood="learning"
                   intro="The one-off steps that get a new intern started, and the settings behind it." />
+      <Link href="/first-day" className="lift flex items-center gap-4 rounded-3xl bg-ink p-5 text-white">
+        <InternAvatar mood="hello" growth="egg" size={64} decorative className="shrink-0" />
+        <div className="flex-1">
+          <p className="hand text-xl leading-none text-brand-300">Start here</p>
+          <p className="font-[family-name:var(--font-display)] text-2xl font-extrabold">{intern}&apos;s first day</p>
+          <p className="text-sm text-white/70">Name it, agree how success is measured, what it handles and where it works, in a few minutes.</p>
+        </div>
+        <span className="text-2xl" aria-hidden>→</span>
+      </Link>
       <ol className="stagger grid gap-3 md:grid-cols-2">
         {STEPS.map((s, i) => {
           const done = s.href === "/orientation" ? Boolean(team?.handbook) : undefined;
@@ -49,6 +60,18 @@ export default function SetupPage() {
           );
         })}
       </ol>
+      {taskType && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <section className="space-y-3 rounded-3xl border border-stone-200 bg-white p-6">
+            <h2 className="text-xl font-extrabold">How {intern} handles each case</h2>
+            <Routines taskType={taskType} allowed={taskType.allowed_actions} canEdit={user?.role === "mentor" || user?.role === "admin"} intern={intern} />
+          </section>
+          <section className="space-y-3 rounded-3xl border border-stone-200 bg-white p-6">
+            <h2 className="text-xl font-extrabold">Where {intern} does the work</h2>
+            <Destinations taskType={taskType} allowed={taskType.allowed_actions} intern={intern} />
+          </section>
+        </div>
+      )}
       {user && <ContactPrefs intern={intern === "your intern" ? "Newt" : intern} />}
       <p className="text-sm text-stone-500">
         Detailed views: <Link href="/board" className="underline">task board</Link> · <Link href="/autonomy" className="underline">autonomy log</Link> ·{" "}

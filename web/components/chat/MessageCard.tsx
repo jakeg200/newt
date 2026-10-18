@@ -17,8 +17,35 @@ const LESSON: Record<string, string> = {
 
 const MOOD: Record<ChatMessage["kind"], Mood> = {
   standup: "hello", question: "thinking", delivery: "working", handback: "handing-back", draft: "drafting",
-  promotion: "graduated", ack: "neutral", chat: "neutral",
+  promotion: "graduated", ack: "neutral", chat: "neutral", weekly: "working", followup: "thinking",
 };
+
+const fmt = (metric: string, v: number | null | undefined) =>
+  v === null || v === undefined ? "–" : metric === "share_by_newt" ? `${Math.round(v * 100)}%`
+    : metric === "median_hours_to_complete" ? `${v}h` : metric === "value" ? Math.round(v).toLocaleString() : String(v);
+
+function KpiChips({ kpis }: { kpis?: { metric: string; label: string; this_week: number | null; target: number | null; on_track: boolean | null }[] }) {
+  if (!kpis?.length) return null;
+  return (
+    <div className="mt-2.5 grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+      {kpis.filter((k) => k.this_week !== null).map((k) => (
+        <div key={k.metric} className={`rounded-2xl px-3 py-2 ${k.on_track === false ? "bg-amber-50 ring-1 ring-amber-200" : k.on_track ? "bg-emerald-50 ring-1 ring-emerald-200" : "bg-stone-50"}`}>
+          <p className="font-[family-name:var(--font-display)] text-lg font-extrabold leading-tight">{fmt(k.metric, k.this_week)}</p>
+          <p className="text-[11px] leading-tight text-stone-500">{k.label}{k.target !== null && ` · goal ${fmt(k.metric, k.target)}`}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Done({ c }: { c?: { what: string[]; simulated: boolean } }) {
+  if (!c) return null;
+  return (
+    <p className="mt-2 inline-flex flex-wrap items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-800 ring-1 ring-emerald-200">
+      ✓ Done{c.what.length ? `: ${c.what.join(", ")}` : ""}{c.simulated && <span className="text-emerald-600/70">· simulated, no system connected</span>}
+    </p>
+  );
+}
 
 export type Act = (id: string, action: ReplyAction, value?: string, note?: string) => Promise<void>;
 
@@ -37,6 +64,7 @@ function Answered({ m }: { m: ChatMessage }) {
   if (m.status === "done" && !a) return <p className="mt-2 text-xs text-stone-400">Dealt with elsewhere ✓</p>;
   if (!a) return null;
   const text = a.action === "approve" ? "Approved" : a.action === "sign" ? "Signed" : a.action === "dismiss" ? "Not now"
+    : a.action === "retry" ? "Try again" : a.action === "chase" ? "Chase it"
     : a.action === "lesson" ? LESSON[a.value ?? ""] ?? label(a.value) : a.action === "answer" ? "Answered" : label(a.value);
   return <p className="mt-2 inline-flex rounded-full bg-stone-100 px-2.5 py-0.5 text-xs text-stone-600">You: {text} ✓</p>;
 }
@@ -119,9 +147,31 @@ function Body({ m, act, open }: { m: ChatMessage; act: Act; open: boolean }) {
           ) : null}
           {open && (
             <div className="mt-2.5 flex flex-wrap gap-1.5">
-              {(p.options as string[]).map((o) => <Chip key={o} disabled={busy} onClick={() => run("decide", o)}>{label(o)}</Chip>)}
+              {p.retry && <Chip primary disabled={busy} onClick={() => run("retry")}>Try again</Chip>}
+              {(p.options as string[]).map((o) => <Chip key={o} disabled={busy} onClick={() => run("decide", o)}>{p.retry ? `I'll ${label(o)}` : label(o)}</Chip>)}
             </div>
           )}
+        </>
+      );
+    case "followup":
+      return (
+        <>
+          <p>{m.body}</p>
+          {open && (
+            <div className="mt-2.5 flex flex-wrap gap-1.5">
+              <Chip primary disabled={busy} onClick={() => run("chase")}>Chase it</Chip>
+              <Chip disabled={busy} onClick={() => run("dismiss")}>Leave it</Chip>
+            </div>
+          )}
+        </>
+      );
+    case "weekly":
+      return (
+        <>
+          <p className="hand text-lg leading-none text-brand-700">What I got done this week</p>
+          <p className="mt-1">{m.body}</p>
+          <KpiChips kpis={p.kpis} />
+          {p.simulated && <p className="mt-2 text-[11px] text-stone-400">Work was simulated: connect a system in Setup for real results.</p>}
         </>
       );
     case "draft":
@@ -133,6 +183,7 @@ function Body({ m, act, open }: { m: ChatMessage; act: Act; open: boolean }) {
             <p className="text-xs font-medium uppercase tracking-wide text-brand-700">My draft · {label(p.decision)}</p>
             {p.reply && <p className="mt-1 whitespace-pre-wrap text-stone-700">{p.reply}</p>}
           </div>
+          <Done c={p.completed} />
           {open && (
             <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
               <Chip primary disabled={busy} onClick={() => run("approve")}>Approve</Chip>
@@ -147,8 +198,13 @@ function Body({ m, act, open }: { m: ChatMessage; act: Act; open: boolean }) {
     case "promotion":
       return (
         <>
-          <p className="hand text-lg leading-none text-brand-700">{p.to === "autonomous" ? "Ready to work on my own?" : "Ready to start drafting?"}</p>
+          <p className="hand text-lg leading-none text-brand-700">
+            {p.to === "senior" ? "Ready for more responsibility?" : p.to === "autonomous" ? "Ready to graduate?" : "Ready to become a junior?"}
+          </p>
           <p className="mt-1">{m.body}</p>
+          <p className="mt-1.5 text-xs font-medium uppercase tracking-wide text-stone-400">
+            Performance review · {p.to === "senior" ? "graduate → senior" : p.to === "autonomous" ? "junior → graduate" : "intern → junior"}
+          </p>
           <div className="mt-2.5 grid grid-cols-3 gap-2 text-center">
             {[["mistakes", `${p.errors_above}/${p.n_above}`], ["wrong at most", pct(p.ucb)], ["of the work", pct(p.coverage)]].map(([k, v]) => (
               <div key={k} className="rounded-2xl bg-stone-50 py-2">
@@ -157,6 +213,7 @@ function Body({ m, act, open }: { m: ChatMessage; act: Act; open: boolean }) {
               </div>
             ))}
           </div>
+          <KpiChips kpis={p.kpis} />
           {open && (
             <div className="mt-2.5 flex gap-1.5">
               <Chip primary disabled={busy} onClick={() => run("sign")}>Sign</Chip>
@@ -225,7 +282,7 @@ export function MessageCard({ m, act, intern, growth }: { m: ChatMessage; act: A
           plain ? "bg-white ring-1 ring-stone-200" : "bg-white shadow-[0_8px_28px_-16px_rgb(27_23_20/0.35)] ring-1 ring-stone-200"} ${
           open && (m.kind === "question" || m.kind === "promotion" || m.kind === "handback" || m.kind === "draft") ? "ring-2 ring-brand-300" : ""}`}>
           <Body m={m} act={act} open={open} />
-          {!open && m.kind !== "standup" && m.kind !== "ack" && m.kind !== "delivery" && <Answered m={m} />}
+          {!open && !["standup", "ack", "delivery", "weekly"].includes(m.kind) && <Answered m={m} />}
         </div>
         <p className="mt-1 pl-2 text-[11px] text-stone-400">{intern} · {time(m.at)}{m.urgency === "urgent" && " · urgent"}</p>
       </div>

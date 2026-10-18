@@ -107,6 +107,8 @@ export interface TaskTypeInfo {
   inputs: string[];
   decision: string[];
   intern_name: string;
+  allowed_actions: string[];
+  hard_rules: string[];
 }
 
 export type Provider = "email_upload" | "gmail" | "csv" | "rest";
@@ -651,7 +653,20 @@ export const api = {
   managerSettings: (team: string, body: Partial<ManagerSettings>) =>
     request<ManagerSettings>(`/manager/settings/${encodeURIComponent(team)}`, { method: "PATCH", body: JSON.stringify(body) }),
 
-  thread: (taskTypeId: string) => request<{ intern_name: string; messages: ChatMessage[] }>(`/messages?task_type_id=${taskTypeId}`),
+  thread: (taskTypeId: string) =>
+    request<{ intern_name: string; messages: ChatMessage[]; rank: Rank; status_line: string }>(`/messages?task_type_id=${taskTypeId}`),
+  destinations: (taskTypeId: string) => request<DestinationInfo[]>(`/destinations?task_type_id=${taskTypeId}`),
+  addDestination: (body: { task_type_id: string; name: string; url: string; actions: string[] }) =>
+    request<DestinationInfo & { secret: string }>("/destinations", { method: "POST", body: JSON.stringify(body) }),
+  testDestination: (id: string) => request<{ ok: boolean; detail: string; at: string }>(`/destinations/${id}/test`, { method: "POST" }),
+  routines: (taskTypeId: string) => request<Record<string, Routine>>(`/task-types/${taskTypeId}/routines`),
+  setRoutine: (taskTypeId: string, decision: string, steps: string[], followUpDays: number | null) =>
+    request<Routine>(`/task-types/${taskTypeId}/routines/${encodeURIComponent(decision)}`,
+      { method: "PUT", body: JSON.stringify({ steps, follow_up_days: followUpDays }) }),
+  outcomes: (taskTypeId: string, weeks = 8) => request<Outcomes>(`/task-types/${taskTypeId}/outcomes?weeks=${weeks}`),
+  setKpiTargets: (taskTypeId: string, body: Record<string, number | null>) =>
+    request<Record<string, number | null>>(`/task-types/${taskTypeId}/kpi-targets`, { method: "PUT", body: JSON.stringify(body) }),
+  career: (taskTypeId: string) => request<Career>(`/task-types/${taskTypeId}/career`),
   say: (taskTypeId: string, text: string) =>
     request<ChatMessage[]>("/messages", { method: "POST", body: JSON.stringify({ task_type_id: taskTypeId, text }) }),
   replyTo: (messageId: string, action: ReplyAction, value?: string, note?: string) =>
@@ -660,12 +675,59 @@ export const api = {
   setPreferences: (body: Partial<ContactPrefs>) => request<ContactPrefs>("/me/preferences", { method: "PATCH", body: JSON.stringify(body) }),
 };
 
-export type ReplyAction = "decide" | "approve" | "reject" | "lesson" | "answer" | "sign" | "feedback" | "dismiss";
+export type ReplyAction = "decide" | "approve" | "reject" | "lesson" | "answer" | "sign" | "feedback" | "dismiss" | "retry" | "chase";
+
+export type Rank = "new_starter" | "intern" | "junior" | "graduate" | "senior";
+
+export interface DestinationInfo {
+  id: string;
+  name: string;
+  url: string;
+  actions: string[];
+  status: "active" | "paused";
+  last_test: { ok?: boolean; detail?: string; at?: string };
+}
+
+export interface Routine {
+  steps: string[];
+  follow_up_days: number | null;
+  status: "proposed" | "approved";
+  reply_share?: number;
+  version?: number;
+}
+
+export interface Kpi {
+  metric: string;
+  label: string;
+  target: number | null;
+  direction: "up" | "down";
+  this_week: number | null;
+  last_week: number | null;
+  trend: number | null;
+  on_track: boolean | null;
+  series: (number | null)[] | null;
+}
+
+export interface Outcomes {
+  weeks: { start: string; end: string; completed_by_newt: number; completed_total: number; share_by_newt: number | null }[];
+  kpis: Kpi[];
+  backlog_open: number;
+  promotions: { at: string; from: string; to: string }[];
+  simulated: boolean;
+  since_start: { completed_by_newt: number };
+}
+
+export interface Career {
+  rank: Rank;
+  title: string;
+  ladder: { rank: Rank; title: string }[];
+  responsibilities: Record<string, unknown>;
+}
 
 export interface ChatMessage {
   id: string;
   direction: "newt" | "person";
-  kind: "standup" | "question" | "delivery" | "handback" | "draft" | "promotion" | "ack" | "chat";
+  kind: "standup" | "question" | "delivery" | "handback" | "draft" | "promotion" | "ack" | "chat" | "weekly" | "followup";
   body: string;
   payload: Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any -- shape depends on kind
   status: "open" | "answered" | "done" | "dismissed";

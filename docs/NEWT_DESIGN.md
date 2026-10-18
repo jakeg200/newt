@@ -17,6 +17,7 @@ Most of these figures come from secondary write-ups with differing definitions, 
 | Traditional firms and SMEs lag: about 20% of EU firms use AI, 17% of small firms against 55% of large ones. The barriers are cost, legal uncertainty, expertise and trust ([Eurostat via summary](https://pasqualepillitteri.it/en/news/9727/digital-decade-2026-europe-cloud-skills-gap)). | Easy, safe and legally clear out of the box: consent, redaction, EU hosting and bounded authority. |
 | "AI employees" mostly cover one slice of a job ([market maps](https://www.teamday.ai/blog/ai-employees-market-map-2026)). Sierra and Decagon rely on forward-deployed engineers, with 3–10 week set-ups and behaviour changes that go through the vendor ([Sacra](https://sacra.com/research/decagon-vs-sierra/)). | The customer's own expert trains Newt, self-serve. The onboarding replaces the forward-deployed engineer. |
 | Task mining is moving privacy-first (on-device redaction, pausing, excluded apps), and always-on recording is often blocked by IT and legal ([Mimica](https://www.mimica.ai/blog/what-is-task-mining)). | Screen learning only through opt-in "show me" sessions (§12). |
+| **Hone** ([hone.com](https://hone.com/)) raised a $60M seed (Benchmark and Index, Oct 2026) for "Engines that own outcomes". Its engines onboard themselves, replay a company's history before going live, live in Slack, Teams and email, and self-improve with replay-tested changes ([Closing the Gap #1](https://hone.com/blog/closing-the-gap/)). | The engine thesis is investable. Newt's difference: it **earns** every step, from intern to senior, on evidence and signatures; it's hired for a **role with KPIs** rather than handed a goal; and it's **self-serve** for traditional and mid-market firms. |
 | Agent memory is becoming infrastructure. Obsolete knowledge needs lifecycle states ([arXiv 2608.18177](https://arxiv.org/pdf/2608.18177)). | Memory with active, dormant and retired states, plus consolidation (§7). |
 
 **Positioning:** make any firm AI-native without retraining its people. Hire Newts for real roles. They learn the work
@@ -257,7 +258,56 @@ with the team's own ramp-up data where available.
 7. **"Show me" sessions:** a desktop or browser capture client, on-device redaction, step logs to procedures.
 8. **Cross-customer role priors** (opt-in) and preference-based fine-tuning experiments.
 
-## 16. Open questions
+## 16. Doing the work, outcomes and the career ladder (built)
+
+**USP:** Newt joins as an intern, learns the job, and keeps getting promoted on performance. Everything below serves
+that.
+
+**Career ladder** (`app/colleague/career.py`):
+- **New starter:** orientation.
+- **Intern:** shadowing, with sealed predictions.
+- **Junior:** supervised; drafts that run only after approval.
+- **Graduate:** autonomous on routine work; hands back the unusual; spot-checked.
+- **Senior:** a graduate with extra responsibilities, such as chasing replies itself. Requested by Newt after 3+ clean
+  spot checks and granted by a manager.
+
+Stage changes keep the existing statistical gate and sign-offs. Promotion requests arrive as **performance reviews**:
+the evidence plus KPIs. The Report card shows the ladder with dates.
+
+**Finished work** (`app/execution/`):
+- Allowed actions (autonomous, or approved) become jobs.
+- The policy is checked again when acting.
+- The executor posts a signed action to the team's **destination**: their system or Zapier/Make/n8n.
+- Actions refer to the **source item**, never to people's details; the firm's system resolves the recipient.
+- A case counts as **completed** only when every action is confirmed, either straight away or via the signed callback.
+- Failures retry 3 times with backoff, then come back to the mentor with the reason and a "Try again" option.
+- With no destination, work is simulated and labelled everywhere.
+
+**Persistence:** per-decision follow-up days. If nothing has happened since Newt finished, it asks "Shall I chase?"; a
+senior Newt chases on its own and says so.
+
+**Routines** (`app/execution/routines.py`): for each decision, which actions to run and when to follow up. Newt
+proposes them from history ("you replied on 92% of these"); the mentor agrees or edits them. Changing an approved
+routine re-certifies.
+
+**Outcome KPIs** (`app/outcomes/kpis.py`):
+- Weekly, on confirmed completions: finished by Newt, share of the work, hours to finish, backlog, hours returned, value.
+- Which KPIs and their targets live in the task-type config; the manager can override targets.
+- The Report card leads with an **outcome chart**: the goal line, each promotion marked, and supporting numbers.
+- The weekly "What I got done" message reports against those KPIs.
+
+**Newt's first day** (`/first-day`), a guided conversation:
+1. Name the intern.
+2. How success is measured (KPI goals).
+3. How trust is earned (the ladder and the hard rules).
+4. Team know-how (the question bank).
+5. Routines.
+6. Systems (connect and test).
+7. It starts as an intern.
+
+**Demo:** `scripts/mock_system.py` (launch config `mock-system`) stands in for the firm's system.
+
+## 17. Open questions
 
 - Which roles first?
 - Voice provider and call UX.

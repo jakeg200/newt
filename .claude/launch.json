@@ -16,6 +16,13 @@
       "url": "http://127.0.0.1:8000"
     },
     {
+      "name": "mock-system",
+      "runtimeExecutable": "backend/.venv/Scripts/python.exe",
+      "runtimeArgs": ["-m", "uvicorn", "scripts.mock_system:app", "--port", "8200", "--app-dir", "backend"],
+      "port": 8200,
+      "url": "http://127.0.0.1:8200"
+    },
+    {
       "name": "web",
       "runtimeExecutable": "C:/Program Files/nodejs/npm.cmd",
       "runtimeArgs": ["--prefix", "web", "run", "dev"],

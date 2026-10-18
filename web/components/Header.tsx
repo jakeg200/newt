@@ -12,7 +12,7 @@ const NAV = [
   { href: "/", label: "Home", match: ["/"] },
   { href: "/inbox", label: "Needs you", match: ["/inbox", "/today", "/autonomy"] },
   { href: "/report", label: "Report card", match: ["/report", "/board"] },
-  { href: "/setup", label: "Setup", match: ["/setup", "/orientation", "/capture", "/backtest", "/learned", "/manager"] },
+  { href: "/setup", label: "Setup", match: ["/setup", "/first-day", "/orientation", "/capture", "/backtest", "/learned", "/manager"] },
 ];
 
 export function Header() {

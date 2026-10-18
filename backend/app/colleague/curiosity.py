@@ -73,6 +73,8 @@ def work_items(session: Session, tt: TaskType) -> list[Candidate]:
         Case.task_type_id == tt.id, Case.status == "open", Prediction.run_id.is_(None))).all()
     for p, case in rows:
         hb = (p.output or {}).get("hand_back") or {}
+        if any(str(r).startswith("couldn't finish") for r in hb.get("reasons") or []):
+            continue  # execution already told the mentor, with a "try again" option
         if hb.get("hand_back"):
             reasons = hb.get("reasons") or []
             out.append(Candidate(

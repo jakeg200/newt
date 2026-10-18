@@ -29,10 +29,24 @@ def _live_score(session: Session, payload: dict) -> object:
     return score_cases(session, payload["case_ids"])
 
 
+def _execute_action(session: Session, payload: dict) -> object:
+    from app.execution.service import run
+
+    return run(session, payload["action_id"])
+
+
+def _follow_up(session: Session, payload: dict) -> object:
+    from app.execution.service import follow_up
+
+    return follow_up(session, payload["case_id"], payload["since"])
+
+
 HANDLERS: dict[str, Callable[[Session, dict], object]] = {
     "backtest": lambda session, payload: execute(session, payload["run_id"]),
     "live_predict": _live_predict,
     "live_score": _live_score,
+    "execute_action": _execute_action,
+    "follow_up": _follow_up,
 }
 
 

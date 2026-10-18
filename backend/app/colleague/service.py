@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.agents.context import utc
 from app.capture.redact import Redactor
-from app.colleague import assist, curiosity, etiquette
+from app.colleague import assist, career, curiosity, etiquette
 from app.graduation import engine
 from app.learning import teaching
 from app.live import decide_draft, pending_drafts, score_cases
@@ -79,10 +79,15 @@ def _standup(session: Session, user: User, tt: TaskType, now: datetime) -> tuple
         Case.task_type_id == tt.id, Case.status == "open", Prediction.run_id.is_(None))) if ((out_ or {}).get("hand_back") or {}).get("hand_back"))
     audits = session.scalar(select(func.count()).select_from(Audit).where(Audit.task_type_id == tt.id, Audit.result.is_(None))) or 0
     ev = engine.evaluate(session, tt)
-    stats = {"handled": handled, "drafts": drafts, "handbacks": handbacks, "audits": audits, "stage": tt.status,
-             "agreement": ev.get("agreement_rate"), "ucb": ev.get("ucb"), "alpha": ev.get("alpha"), "coverage": ev.get("coverage")}
+    finished = sum(1 for (at,) in session.execute(select(Case.completed_at).where(Case.task_type_id == tt.id, Case.completed_at.is_not(None)))
+                   if utc(at) >= since)
+    stats = {"handled": handled, "finished": finished, "drafts": drafts, "handbacks": handbacks, "audits": audits, "stage": tt.status,
+             "rank": career.rank(session, tt), "agreement": ev.get("agreement_rate"), "ucb": ev.get("ucb"), "alpha": ev.get("alpha"),
+             "coverage": ev.get("coverage")}
     parts = []
-    if tt.status == "autonomous":
+    if finished:
+        parts.append(f"I finished {finished} {'case' if finished == 1 else 'cases'}" + (" since yesterday." if last else " so far."))
+    if tt.status == "autonomous" and not finished:
         parts.append(f"I handled {handled} {'case' if handled == 1 else 'cases'} on my own" + (" since yesterday." if last else "."))
     elif tt.status == "supervised":
         parts.append(f"{drafts} {'draft is' if drafts == 1 else 'drafts are'} ready for you to approve.")
@@ -93,15 +98,52 @@ def _standup(session: Session, user: User, tt: TaskType, now: datetime) -> tuple
             parts.append(f"{handbacks} {'case needs' if handbacks == 1 else 'cases need'} your call.")
         if audits:
             parts.append(f"{audits} spot {'check' if audits == 1 else 'checks'} waiting.")
-    if not any(stats[k] for k in ("handled", "drafts", "handbacks", "audits")) and tt.status != "shadow":
+    if not any(stats[k] for k in ("handled", "finished", "drafts", "handbacks", "audits")) and tt.status != "shadow":
         parts.append("Nothing needs you yet.")
     return " ".join(parts), stats
+
+
+def status_line(session: Session, user: User, tt: TaskType, messages: list[dict[str, Any]]) -> str:
+    """What Newt is doing right now, in one line, like a colleague's status."""
+    waiting = sum(1 for m in messages if m["direction"] == "newt" and m["status"] == "open" and m["kind"] not in ("delivery",))
+    if waiting:
+        return f"{waiting} {'thing is' if waiting == 1 else 'things are'} waiting on you."
+    running = session.scalar(select(func.count()).select_from(ActionLog).join(Case, Case.id == ActionLog.case_id).where(
+        Case.task_type_id == tt.id, ActionLog.exec_status.in_(("queued", "running")))) or 0
+    if running:
+        return f"Finishing {running} {'action' if running == 1 else 'actions'} in your systems."
+    if tt.status in ("shadow", "demoted"):
+        return "Shadowing your work and taking notes."
+    return "Things are running smoothly. No asks from you."
+
+
+def _weekly(session: Session, tt: TaskType, now: datetime) -> tuple[str, dict[str, Any]]:
+    from app.outcomes.kpis import outcomes
+
+    o = outcomes(session, tt, now, weeks=2)
+    this = o["weeks"][-1]
+    n = this["completed_by_newt"]
+    body = f"This week I finished {n} {'case' if n == 1 else 'cases'}"
+    if this["share_by_newt"] is not None:
+        body += f", {round(this['share_by_newt'] * 100)}% of the work"
+    if this["hours_returned"]:
+        body += f", giving back {this['hours_returned']} hours"
+    body += "."
+    misses = [k["label"] for k in o["kpis"] if k["on_track"] is False]
+    body += f" Behind on: {', '.join(misses)}." if misses else " Everything I'm measured on is on track."
+    return body, {"kpis": o["kpis"], "simulated": o["simulated"], "rank": career.rank(session, tt)}
 
 
 # Promotions ---------------------------------------------------------------------------------
 
 def _promotion(session: Session, user: User, tt: TaskType) -> tuple[str, str, dict[str, Any]] | None:
-    """A request to move up a stage, sent to whoever may sign it, only when the evidence is there."""
+    """A request to move up, sent to whoever may sign it, only when the evidence is there: a performance review."""
+    if user.role in ("manager", "admin"):
+        ready = career.senior_ready(session, tt)
+        if ready:
+            return ("senior", (f"I've passed {ready['audits_passed']} spot checks in a row since graduating. May I take on chasing "
+                               "replies myself? I'll follow up politely when nothing has happened, and tell the team each time."),
+                    {**engine.evaluate(session, tt), "responsibility": "follow_ups"})
     ev = engine.evaluate(session, tt)
     if tt.status in ("shadow", "demoted") and ev.get("eligible") and user.role in MENTOR_ROLES:
         return ("supervised", (f"{ev['errors_above']} mistakes in {ev['n_above']} cases I was sure about. At worst I'd be wrong "
@@ -159,9 +201,21 @@ def refresh(session: Session, user: User, tt: TaskType, now: datetime | None = N
         to, body, ev = promo
         key = f"promotion:{tt.id}:{to}:{tt.status}"
         if not _exists(session, user, key):
-            _say(session, user, tt, "promotion", body, {"to": to, "ucb": ev.get("ucb"), "alpha": ev.get("alpha"), "n_above": ev.get("n_above"),
-                                                        "errors_above": ev.get("errors_above"), "coverage": ev.get("coverage")},
+            from app.outcomes.kpis import outcomes
+
+            kpis = [k for k in outcomes(session, tt, now, weeks=2)["kpis"] if k["this_week"] is not None][:3]
+            _say(session, user, tt, "promotion", body, {"to": to, "rank": career.rank(session, tt), "ucb": ev.get("ucb"), "alpha": ev.get("alpha"),
+                                                        "n_above": ev.get("n_above"), "errors_above": ev.get("errors_above"),
+                                                        "coverage": ev.get("coverage"), "kpis": kpis, "responsibility": ev.get("responsibility")},
                  key=key, at=etiquette.deliver_at(now, prefs, kind="work"))
+
+    local = now.astimezone(etiquette.ZoneInfo(prefs.timezone))
+    last_workday = max(prefs.workdays) if prefs.workdays else 4
+    if etiquette.working(now, prefs) and local.weekday() == last_workday and local.hour >= 15:
+        key = f"weekly:{tt.id}:{local.isocalendar()[0]}-{local.isocalendar()[1]}"
+        if not _exists(session, user, key):
+            body, payload = _weekly(session, tt, now)
+            _say(session, user, tt, "weekly", body, payload, key=key, at=now, status="done")
 
     if user.role not in MENTOR_ROLES:
         session.commit()
@@ -259,7 +313,7 @@ def reply(session: Session, user: User, message_id: str, action: str, value: str
     tt = session.get(TaskType, m.task_type_id)
     p = m.payload
     said: list[Message] = []
-    mentor_only = action in ("decide", "approve", "reject", "lesson", "answer")
+    mentor_only = action in ("decide", "approve", "reject", "lesson", "answer", "chase")
     if mentor_only and user.role not in MENTOR_ROLES:
         raise PermissionError("only the mentor can answer this")
 
@@ -292,11 +346,30 @@ def reply(session: Session, user: User, message_id: str, action: str, value: str
         said.append(_say(session, user, tt, "ack", "Thanks, I've written that into my notes for the handbook.", at=now, status="done"))
     elif action == "sign":
         try:
-            engine.sign(session, tt, user, p["to"])
-        except (PermissionError, engine.GraduationError) as exc:
+            if p["to"] == "senior":
+                career.grant(session, user, tt, p.get("responsibility") or "follow_ups")
+            else:
+                engine.sign(session, tt, user, p["to"])
+        except (PermissionError, engine.GraduationError, career.CareerError) as exc:
             raise ConversationError(str(exc)) from exc
-        said.append(_say(session, user, tt, "ack", "Thank you! I won't let you down. You'll see everything I do in the morning stand-up.",
-                         {"mood": "graduated"}, at=now, status="done"))
+        title = career.TITLES[career.rank(session, tt)]
+        said.append(_say(session, user, tt, "ack", f"Thank you! I'm a {title.lower()} now and I won't let you down. "
+                                                   "You'll see everything I do in the morning stand-up.",
+                         {"mood": "graduated", "rank": career.rank(session, tt)}, at=now, status="done"))
+    elif action in ("retry", "chase"):
+        from app.execution import service as execution
+
+        if action == "retry":
+            if user.role not in MENTOR_ROLES:
+                raise PermissionError("only the mentor can answer this")
+            execution.retry(session, p["retry"])
+            said.append(_say(session, user, tt, "ack", "Trying again now. I'll let you know how it goes.", at=now, status="done"))
+        else:
+            case = session.get(Case, p["case"]["id"])
+            row = execution.chase(session, case) if case else None
+            session.commit()
+            said.append(_say(session, user, tt, "ack", "Chasing it now." if row is not None and row.status != "blocked"
+                             else "I couldn't send a follow-up for this one; it's over to you.", at=now, status="done"))
     elif action == "feedback":
         p = {**p, "feedback": {"value": value, "note": Redactor()(note) if note else None, "at": now.isoformat()}}
         m.payload = p

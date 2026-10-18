@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.auth import current_user
 from app.capture.service import org_task_type
-from app.colleague import etiquette, service
+from app.colleague import career, etiquette, service
 from app.db import get_session
 from app.models import TaskType, User
 
@@ -25,7 +25,9 @@ def _tt(session: Session, user: User, task_type_id: str) -> TaskType:
 @router.get("/messages")
 def get_thread(task_type_id: str, user: User = Depends(current_user), session: Session = Depends(get_session)) -> dict[str, Any]:
     tt = _tt(session, user, task_type_id)
-    return {"intern_name": service.intern_name(session, tt), "messages": service.thread(session, user, tt)}
+    messages = service.thread(session, user, tt)
+    return {"intern_name": service.intern_name(session, tt), "messages": messages, "rank": career.rank(session, tt),
+            "status_line": service.status_line(session, user, tt, messages)}
 
 
 class SayIn(BaseModel):
@@ -43,7 +45,7 @@ def say(body: SayIn, user: User = Depends(current_user), session: Session = Depe
 
 
 class ReplyIn(BaseModel):
-    action: Literal["decide", "approve", "reject", "lesson", "answer", "sign", "feedback", "dismiss"]
+    action: Literal["decide", "approve", "reject", "lesson", "answer", "sign", "feedback", "dismiss", "retry", "chase"]
     value: str | None = Field(default=None, max_length=2000)
     note: str | None = Field(default=None, max_length=2000)
 
