@@ -25,5 +25,12 @@
       {"action": "forward", "decision": "escalate"}
     ],
     "reply_text_output": "supplier_email"
-  }
+  },
+  "question_bank": [
+    {"key": "tolerance", "question": "How big a price difference do you let through without querying the supplier?"},
+    {"key": "key_accounts", "question": "Which suppliers are key accounts, and what do you do differently for them?"},
+    {"key": "duplicates", "question": "How do you spot a duplicate invoice, and what do you check first?"},
+    {"key": "gl_codes", "question": "Which GL codes do people most often get wrong, and how do you choose?"},
+    {"key": "chasing", "question": "When a supplier doesn't reply to a query, when and how do you chase them?"}
+  ]
 }

@@ -650,4 +650,37 @@ export const api = {
   managerDashboard: () => request<{ period_days: number; teams: ManagerTeam[] }>("/manager/dashboard"),
   managerSettings: (team: string, body: Partial<ManagerSettings>) =>
     request<ManagerSettings>(`/manager/settings/${encodeURIComponent(team)}`, { method: "PATCH", body: JSON.stringify(body) }),
+
+  thread: (taskTypeId: string) => request<{ intern_name: string; messages: ChatMessage[] }>(`/messages?task_type_id=${taskTypeId}`),
+  say: (taskTypeId: string, text: string) =>
+    request<ChatMessage[]>("/messages", { method: "POST", body: JSON.stringify({ task_type_id: taskTypeId, text }) }),
+  replyTo: (messageId: string, action: ReplyAction, value?: string, note?: string) =>
+    request<ChatMessage[]>(`/messages/${messageId}/reply`, { method: "POST", body: JSON.stringify({ action, value, note }) }),
+  preferences: () => request<ContactPrefs>("/me/preferences"),
+  setPreferences: (body: Partial<ContactPrefs>) => request<ContactPrefs>("/me/preferences", { method: "PATCH", body: JSON.stringify(body) }),
 };
+
+export type ReplyAction = "decide" | "approve" | "reject" | "lesson" | "answer" | "sign" | "feedback" | "dismiss";
+
+export interface ChatMessage {
+  id: string;
+  direction: "newt" | "person";
+  kind: "standup" | "question" | "delivery" | "handback" | "draft" | "promotion" | "ack" | "chat";
+  body: string;
+  payload: Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any -- shape depends on kind
+  status: "open" | "answered" | "done" | "dismissed";
+  urgency: "low" | "normal" | "urgent";
+  at: string;
+  answered_at: string | null;
+}
+
+export interface ContactPrefs {
+  timezone: string;
+  start: string;
+  end: string;
+  workdays: number[];
+  questions_per_day: number;
+  urgent_out_of_hours: boolean;
+  calls: boolean;
+  channel: "app" | "email" | "slack" | "teams";
+}

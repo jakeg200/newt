@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { ContactPrefs } from "@/components/ContactPrefs";
 import { InternAvatar, type Growth } from "@/components/InternAvatar";
 import { PageHeader } from "@/components/ui";
 import { api, type ManagerTeam } from "@/lib/api";
@@ -48,6 +49,7 @@ export default function SetupPage() {
           );
         })}
       </ol>
+      {user && <ContactPrefs intern={intern === "your intern" ? "Newt" : intern} />}
       <p className="text-sm text-stone-500">
         Detailed views: <Link href="/board" className="underline">task board</Link> · <Link href="/autonomy" className="underline">autonomy log</Link> ·{" "}
         <Link href="/today" className="underline">teaching only</Link>

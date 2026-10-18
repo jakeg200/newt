@@ -46,6 +46,16 @@ class CaptureConfig(BaseModel):
     reply_text_output: str | None = None  # which text output a mentor's reply fills
 
 
+class BankQuestion(BaseModel):
+    """A question Newt asks its mentor about this role, like a good first-week intern. The answer joins the
+    orientation questionnaire, so it also feeds the handbook."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    key: str = Field(pattern=r"^[a-z0-9_]{1,40}$")
+    question: str = Field(min_length=5, max_length=300)
+
+
 class TaskTypeConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -60,6 +70,7 @@ class TaskTypeConfig(BaseModel):
     alpha: float = Field(gt=0, lt=0.5)
     min_cases: int = Field(ge=1)
     capture: CaptureConfig = Field(default_factory=CaptureConfig)
+    question_bank: list[BankQuestion] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def _capture_matches_task(self) -> "TaskTypeConfig":

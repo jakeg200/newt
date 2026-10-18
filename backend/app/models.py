@@ -45,6 +45,7 @@ class User(Base):
     role: Mapped[str] = mapped_column(String(20))  # mentor | manager | admin
     email: Mapped[str] = mapped_column(String(320), unique=True)
     name: Mapped[str] = mapped_column(String(200))
+    preferences: Mapped[dict] = mapped_column(Json, default=dict)  # how Newt may reach this person: hours, budget, channel
 
 
 class Consent(Base):
@@ -327,6 +328,28 @@ class Lesson(Base):
     rule_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("rules.id", ondelete="SET NULL"))
     created_by: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class Message(Base):
+    """One message in the conversation between Newt and a person, about one task type.
+
+    Newt writes `body` itself from redacted case data; anything a person types is redacted before it's stored.
+    `dedupe_key` stops Newt asking the same thing twice. `deliver_after` is when etiquette lets it be seen."""
+
+    __tablename__ = "messages"
+    id: Mapped[str] = pk()
+    task_type_id: Mapped[str] = fk("task_types.id")
+    user_id: Mapped[str] = fk("users.id")
+    direction: Mapped[str] = mapped_column(String(10))  # newt | person
+    kind: Mapped[str] = mapped_column(String(20))  # standup | question | delivery | handback | draft | promotion | ack | chat
+    body: Mapped[str] = mapped_column(Text, default="")
+    payload: Mapped[dict] = mapped_column(Json, default=dict)  # case refs, options, the answer
+    status: Mapped[str] = mapped_column(String(20), default="open")  # open | answered | done | dismissed
+    urgency: Mapped[str] = mapped_column(String(10), default="normal")  # low | normal | urgent
+    dedupe_key: Mapped[str | None] = mapped_column(String(200), index=True)
+    deliver_after: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    answered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class GraduationEvent(Base):

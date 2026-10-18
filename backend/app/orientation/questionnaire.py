@@ -30,6 +30,8 @@ def questions_for(task_types: list[dict[str, Any]]) -> list[dict[str, str]]:
                     "group": task["name"],
                 }
             )
+        for item in task.get("question_bank") or []:  # role-specific questions Newt asks during its first weeks
+            questions.append({"key": f"{slug}.bank.{item['key']}", "question": item["question"], "group": task["name"]})
     return questions
 
 

@@ -70,6 +70,20 @@ def run_once(session: Session) -> bool:
     return True
 
 
+TICK_EVERY_S = 60.0
+
+
+def tick_conversations(session: Session) -> None:
+    """When idle, let Newt prepare messages (stand-ups, questions) so they're waiting before anyone looks."""
+    from app.colleague.service import tick
+
+    try:
+        tick(session)
+    except Exception:
+        session.rollback()
+        log.exception("conversation tick failed")
+
+
 class InlineWorker:
     def __init__(self, maker: sessionmaker, interval_s: float = 1.0) -> None:
         self.maker, self.interval_s = maker, interval_s
@@ -84,10 +98,14 @@ class InlineWorker:
         self._thread.join(timeout=5)
 
     def _loop(self) -> None:
+        last_tick = 0.0
         while not self._stop.is_set():
             try:
                 with self.maker() as session:
                     worked = run_once(session)
+                    if not worked and time.monotonic() - last_tick > TICK_EVERY_S:
+                        tick_conversations(session)
+                        last_tick = time.monotonic()
             except Exception:
                 log.exception("worker loop error")
                 worked = False
@@ -100,9 +118,13 @@ def main() -> None:
 
     maker = sessionmaker(bind=get_engine(), expire_on_commit=False)
     log.info("worker started")
+    last_tick = 0.0
     while True:
         with maker() as session:
             if not run_once(session):
+                if time.monotonic() - last_tick > TICK_EVERY_S:
+                    tick_conversations(session)
+                    last_tick = time.monotonic()
                 time.sleep(1.0)
 
 
